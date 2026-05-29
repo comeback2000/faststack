@@ -930,6 +930,13 @@ function renderGroupLedger() {
             <span class="des-text">${escapeHtml(entry.description)}</span>
           </button>
         </td>
+        <td class="actions-col">
+          <div class="row-actions">
+            <button class="icon-button" type="button" data-action="edit-ledger" data-type="${entry.type}" data-id="${escapeAttribute(entry.id)}" aria-label="Edit ${escapeAttribute(entry.description)}" title="Edit">
+              <i data-lucide="pencil" aria-hidden="true"></i>
+            </button>
+          </div>
+        </td>
       </tr>
     `;
   }).join("");
@@ -1066,15 +1073,20 @@ function renderTransactions() {
 }
 
 function handleDetailClick(event) {
-  const button = event.target.closest("button[data-action='view-details']");
+  const button = event.target.closest("button[data-action]");
   if (!button) {
     return;
   }
 
   const collection = button.dataset.type === "cash-in" ? state.cashIns : state.expenses;
   const transaction = collection.find((entry) => entry.id === button.dataset.id);
-  if (transaction) {
+
+  if (transaction && button.dataset.action === "view-details") {
     openDetailModal(transaction, button.dataset.type);
+  }
+
+  if (transaction && button.dataset.action === "edit-ledger") {
+    editTransaction(transaction, button.dataset.type);
   }
 }
 

@@ -9,10 +9,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=ist-amount-1">
+    <link rel="stylesheet" href="styles.css?v=crud-pdf-1">
     <script src="config.js?v=google-sheets-v10"></script>
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script defer src="app.js?v=google-sheets-v12"></script>
+    <script defer src="app.js?v=crud-pdf-1"></script>
   </head>
   <body>
     <section class="login-screen" id="loginScreen" aria-label="Account access">
@@ -130,7 +130,11 @@
           </label>
           <button class="ghost-button" id="exportButton" type="button">
             <i data-lucide="download" aria-hidden="true"></i>
-            Export
+            JSON
+          </button>
+          <button class="ghost-button" id="pdfExportButton" type="button">
+            <i data-lucide="file-text" aria-hidden="true"></i>
+            PDF
           </button>
           <button class="ghost-button" id="logoutButton" type="button">
             <i data-lucide="log-out" aria-hidden="true"></i>
@@ -387,6 +391,105 @@
                 <span>Add funds and allocate them to a group.</span>
               </div>
             </div>
+          </section>
+
+          <section class="management-grid" aria-label="Record management">
+            <section class="panel management-panel" aria-label="Category management">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Categories</p>
+                  <h2>Manage Groups</h2>
+                </div>
+                <button class="icon-button hidden" id="cancelGroupEditButton" type="button" aria-label="Cancel category edit" title="Cancel edit">
+                  <i data-lucide="x" aria-hidden="true"></i>
+                </button>
+              </div>
+              <form id="groupForm" class="inline-form">
+                <input type="hidden" id="groupOriginalName">
+                <label class="field">
+                  <span>Group Name</span>
+                  <input id="groupNameInput" type="text" placeholder="Delhi Tour" maxlength="60" required>
+                </label>
+                <label class="field color-field">
+                  <span>Color</span>
+                  <input id="groupColorInput" type="color" value="#0f766e" required>
+                </label>
+                <button class="primary-button" id="groupSubmitButton" type="submit">
+                  <i data-lucide="folder-plus" aria-hidden="true"></i>
+                  Save Group
+                </button>
+              </form>
+              <p class="form-message" id="groupMessage" role="status" aria-live="polite"></p>
+              <div class="table-wrap compact-table-wrap">
+                <table class="management-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Group</th>
+                      <th scope="col" class="amount-col">Cash In</th>
+                      <th scope="col" class="amount-col">Spent</th>
+                      <th scope="col" class="amount-col">Balance</th>
+                      <th scope="col" class="actions-col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="groupTable"></tbody>
+                </table>
+                <div id="groupEmptyState" class="empty-state hidden">
+                  <i data-lucide="folder-open" aria-hidden="true"></i>
+                  <strong>No groups yet</strong>
+                  <span>Create a group before adding transactions.</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel management-panel" aria-label="Account management">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Users</p>
+                  <h2>My Account</h2>
+                </div>
+              </div>
+              <dl class="account-summary">
+                <div>
+                  <dt>Email</dt>
+                  <dd id="accountEmail">-</dd>
+                </div>
+                <div>
+                  <dt>Role</dt>
+                  <dd id="accountRole">-</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd id="accountStatus">-</dd>
+                </div>
+                <div>
+                  <dt>Verified</dt>
+                  <dd id="accountVerified">-</dd>
+                </div>
+              </dl>
+              <form id="passwordForm" class="expense-form account-form">
+                <label class="field">
+                  <span>Current Password</span>
+                  <input id="currentPasswordInput" type="password" autocomplete="current-password" placeholder="Current password" required minlength="8">
+                </label>
+                <label class="field">
+                  <span>New Password</span>
+                  <input id="newPasswordInput" type="password" autocomplete="new-password" placeholder="New password" required minlength="8">
+                </label>
+                <label class="field">
+                  <span>Confirm New Password</span>
+                  <input id="confirmNewPasswordInput" type="password" autocomplete="new-password" placeholder="Repeat new password" required minlength="8">
+                </label>
+                <button class="primary-button" type="submit">
+                  <i data-lucide="key-round" aria-hidden="true"></i>
+                  Update Password
+                </button>
+              </form>
+              <button class="ghost-button danger-button" id="deleteAccountButton" type="button">
+                <i data-lucide="user-x" aria-hidden="true"></i>
+                Delete My Account
+              </button>
+              <p class="form-message" id="accountMessage" role="status" aria-live="polite"></p>
+            </section>
           </section>
         </section>
       </section>

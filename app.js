@@ -61,6 +61,7 @@ const elements = {
   loginMessage: document.querySelector("#loginMessage"),
   currencySelect: document.querySelector("#currencySelect"),
   exportButton: document.querySelector("#exportButton"),
+  pdfExportButton: document.querySelector("#pdfExportButton"),
   logoutButton: document.querySelector("#logoutButton"),
   form: document.querySelector("#expenseForm"),
   expenseId: document.querySelector("#expenseId"),
@@ -99,6 +100,25 @@ const elements = {
   cashInTable: document.querySelector("#cashInTable"),
   emptyState: document.querySelector("#emptyState"),
   cashInEmptyState: document.querySelector("#cashInEmptyState"),
+  groupForm: document.querySelector("#groupForm"),
+  groupOriginalName: document.querySelector("#groupOriginalName"),
+  groupNameInput: document.querySelector("#groupNameInput"),
+  groupColorInput: document.querySelector("#groupColorInput"),
+  groupSubmitButton: document.querySelector("#groupSubmitButton"),
+  cancelGroupEditButton: document.querySelector("#cancelGroupEditButton"),
+  groupMessage: document.querySelector("#groupMessage"),
+  groupTable: document.querySelector("#groupTable"),
+  groupEmptyState: document.querySelector("#groupEmptyState"),
+  accountEmail: document.querySelector("#accountEmail"),
+  accountRole: document.querySelector("#accountRole"),
+  accountStatus: document.querySelector("#accountStatus"),
+  accountVerified: document.querySelector("#accountVerified"),
+  passwordForm: document.querySelector("#passwordForm"),
+  currentPasswordInput: document.querySelector("#currentPasswordInput"),
+  newPasswordInput: document.querySelector("#newPasswordInput"),
+  confirmNewPasswordInput: document.querySelector("#confirmNewPasswordInput"),
+  deleteAccountButton: document.querySelector("#deleteAccountButton"),
+  accountMessage: document.querySelector("#accountMessage"),
   searchInput: document.querySelector("#searchInput"),
   weekFilter: document.querySelector("#weekFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
@@ -197,6 +217,11 @@ function bindAuthEvents() {
 
 function bindEvents() {
   elements.form.addEventListener("submit", handleSubmit);
+  elements.groupForm.addEventListener("submit", handleGroupSubmit);
+  elements.cancelGroupEditButton.addEventListener("click", resetGroupForm);
+  elements.groupTable.addEventListener("click", handleGroupTableClick);
+  elements.passwordForm.addEventListener("submit", handlePasswordUpdate);
+  elements.deleteAccountButton.addEventListener("click", handleDeleteAccount);
   elements.cancelEditButton.addEventListener("click", resetForm);
   elements.expenseModeButton.addEventListener("click", () => setMode("expense"));
   elements.cashInModeButton.addEventListener("click", () => setMode("cash-in"));
@@ -207,6 +232,7 @@ function bindEvents() {
     render();
   });
   elements.exportButton.addEventListener("click", exportData);
+  elements.pdfExportButton.addEventListener("click", exportPdfReport);
   elements.searchInput.addEventListener("input", () => {
     state.filters.search = elements.searchInput.value.trim().toLowerCase();
     renderTransactions();
@@ -652,6 +678,190 @@ function showFormMessage(message, isError = false) {
   elements.formMessage.classList.toggle("error", isError);
 }
 
+async function handleGroupSubmit(event) {
+  event.preventDefault();
+  const originalName = elements.groupOriginalName.value;
+  const group = {
+    name: elements.groupNameInput.value.trim(),
+    color: elements.groupColorInput.value,
+  };
+
+  if (!group.name) {
+    showGroupMessage("Enter a group name.", true);
+    return;
+  }
+
+  const previousState = snapshotDashboardState();
+  try {
+    if (originalName && originalName.toLowerCase() !== group.name.toLowerCase()) {
+      renameLocalGroup(originalName, group);
+      render();
+      showGroupMessage("Group updated. Syncing...");
+      await apiRequest("renameGroup", { token: state.token, oldName: originalName, group });
+      showGroupMessage("Group updated.");
+    } else {
+      const saved = ensureGroup(group.name);
+      saved.color = group.color;
+      render();
+      showGroupMessage("Group saved. Syncing...");
+      await persistGroup(group.name);
+      showGroupMessage("Group saved.");
+    }
+    resetGroupForm();
+  } catch (error) {
+    restoreDashboardState(previousState);
+    render();
+    showGroupMessage(error.message || "Could not save group.", true);
+  }
+}
+
+function handleGroupTableClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) {
+    return;
+  }
+  const name = button.dataset.name;
+  const group = state.groups.find((item) => item.name === name);
+  if (!group) {
+    return;
+  }
+
+  if (button.dataset.action === "edit-group") {
+    elements.groupOriginalName.value = group.name;
+    elements.groupNameInput.value = group.name;
+    elements.groupColorInput.value = group.color;
+    elements.groupSubmitButton.innerHTML = `<i data-lucide="save" aria-hidden="true"></i> Update Group`;
+    elements.cancelGroupEditButton.classList.remove("hidden");
+    elements.groupNameInput.focus();
+    refreshIcons();
+  }
+
+  if (button.dataset.action === "delete-group") {
+    void deleteGroup(group.name);
+  }
+
+  if (button.dataset.action === "cash-in-group") {
+    setMode("cash-in");
+    elements.categoryInput.value = group.name;
+    elements.descriptionInput.value = `Funds for ${group.name}`;
+    elements.amountInput.focus();
+  }
+
+  if (button.dataset.action === "expense-group") {
+    setMode("expense");
+    elements.categoryInput.value = group.name;
+    elements.descriptionInput.focus();
+  }
+}
+
+async function deleteGroup(name) {
+  const hasEntries = [...state.cashIns, ...state.expenses].some((transaction) => transaction.category === name);
+  if (hasEntries) {
+    showGroupMessage("This group has entries. Move or delete those entries first.", true);
+    return;
+  }
+  if (!window.confirm(`Delete group "${name}"?`)) {
+    return;
+  }
+
+  const previousState = snapshotDashboardState();
+  state.groups = state.groups.filter((group) => group.name !== name);
+  populateGroupControls();
+  render();
+  showGroupMessage("Group deleted. Syncing...");
+
+  try {
+    await apiRequest("deleteGroup", { token: state.token, name });
+    showGroupMessage("Group deleted.");
+  } catch (error) {
+    restoreDashboardState(previousState);
+    render();
+    showGroupMessage(error.message || "Could not delete group.", true);
+  }
+}
+
+function renameLocalGroup(originalName, group) {
+  const existing = state.groups.find((item) => item.name.toLowerCase() === originalName.toLowerCase());
+  if (existing) {
+    existing.name = group.name;
+    existing.color = group.color;
+  }
+  state.cashIns = state.cashIns.map((entry) => entry.category === originalName ? { ...entry, category: group.name } : entry);
+  state.expenses = state.expenses.map((entry) => entry.category === originalName ? { ...entry, category: group.name } : entry);
+  if (state.filters.group === originalName) {
+    state.filters.group = group.name;
+  }
+  if (elements.projectGroupSelect.value === originalName) {
+    elements.projectGroupSelect.value = group.name;
+  }
+  populateGroupControls();
+}
+
+function resetGroupForm() {
+  elements.groupForm.reset();
+  elements.groupOriginalName.value = "";
+  elements.groupColorInput.value = colorPool[state.groups.length % colorPool.length];
+  elements.groupSubmitButton.innerHTML = `<i data-lucide="folder-plus" aria-hidden="true"></i> Save Group`;
+  elements.cancelGroupEditButton.classList.add("hidden");
+  refreshIcons();
+}
+
+function showGroupMessage(message, isError = false) {
+  elements.groupMessage.textContent = message;
+  elements.groupMessage.classList.toggle("error", isError);
+}
+
+async function handlePasswordUpdate(event) {
+  event.preventDefault();
+  showAccountMessage("");
+
+  const currentPassword = elements.currentPasswordInput.value;
+  const newPassword = elements.newPasswordInput.value;
+  const confirmPassword = elements.confirmNewPasswordInput.value;
+  if (newPassword !== confirmPassword) {
+    showAccountMessage("New passwords do not match.", true);
+    return;
+  }
+
+  try {
+    await apiRequest("updatePassword", {
+      token: state.token,
+      currentPassword: await getPasswordMaterial(state.user.email, currentPassword),
+      newPassword: await getPasswordMaterial(state.user.email, newPassword),
+    });
+    elements.passwordForm.reset();
+    showAccountMessage("Password updated.");
+  } catch (error) {
+    showAccountMessage(error.message || "Could not update password.", true);
+  }
+}
+
+async function handleDeleteAccount() {
+  const confirmation = window.prompt("Type DELETE to permanently delete your account and all FastStack data.");
+  if (confirmation !== "DELETE") {
+    showAccountMessage("Account deletion cancelled.", true);
+    return;
+  }
+
+  try {
+    await apiRequest("deleteAccount", { token: state.token });
+    clearAuthSession();
+    state.expenses = [];
+    state.cashIns = [];
+    state.groups = [];
+    setAuthenticated(false);
+    setAuthView("login");
+    showAuthMessage("Account deleted.");
+  } catch (error) {
+    showAccountMessage(error.message || "Could not delete account.", true);
+  }
+}
+
+function showAccountMessage(message, isError = false) {
+  elements.accountMessage.textContent = message;
+  elements.accountMessage.classList.toggle("error", isError);
+}
+
 function render() {
   const weeklyExpenses = expensesForWeek(state.filters.week);
   const weeklyCashIns = cashInsForWeek(state.filters.week);
@@ -671,6 +881,8 @@ function render() {
   renderDailyBreakdown();
   renderTransactions();
   renderCashIns();
+  renderGroupManager(groupSummaries);
+  renderAccount();
   refreshIcons();
 }
 
@@ -922,6 +1134,56 @@ function renderCashIns() {
   refreshIcons();
 }
 
+function renderGroupManager(groupSummaries = getGroupSummaries()) {
+  const summaries = groupSummaries
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  elements.groupTable.innerHTML = summaries.map((group) => {
+    const balanceClass = group.remaining < 0 ? "balance-negative" : "balance-positive";
+    return `
+      <tr>
+        <td>
+          <span class="chip">
+            <span class="swatch" style="background:${group.color}"></span>
+            ${escapeHtml(group.name)}
+          </span>
+        </td>
+        <td class="amount-col positive-amount"><strong>${formatCurrency(group.allocated)}</strong></td>
+        <td class="amount-col cash-out-value"><strong>${formatCurrency(group.spent)}</strong></td>
+        <td class="amount-col ${balanceClass}"><strong>${formatCurrency(group.remaining)}</strong></td>
+        <td class="actions-col">
+          <div class="row-actions">
+            <button class="icon-button" type="button" data-action="cash-in-group" data-name="${escapeAttribute(group.name)}" aria-label="Add funds to ${escapeAttribute(group.name)}" title="Add funds">
+              <i data-lucide="arrow-down-to-line" aria-hidden="true"></i>
+            </button>
+            <button class="icon-button" type="button" data-action="expense-group" data-name="${escapeAttribute(group.name)}" aria-label="Add expense to ${escapeAttribute(group.name)}" title="Add expense">
+              <i data-lucide="receipt" aria-hidden="true"></i>
+            </button>
+            <button class="icon-button" type="button" data-action="edit-group" data-name="${escapeAttribute(group.name)}" aria-label="Edit ${escapeAttribute(group.name)}" title="Edit group">
+              <i data-lucide="pencil" aria-hidden="true"></i>
+            </button>
+            <button class="icon-button danger" type="button" data-action="delete-group" data-name="${escapeAttribute(group.name)}" aria-label="Delete ${escapeAttribute(group.name)}" title="Delete group">
+              <i data-lucide="trash-2" aria-hidden="true"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  elements.groupEmptyState.classList.toggle("hidden", summaries.length > 0);
+  refreshIcons();
+}
+
+function renderAccount() {
+  const user = state.user || {};
+  elements.accountEmail.textContent = user.email || "-";
+  elements.accountRole.textContent = user.role || "user";
+  elements.accountStatus.textContent = user.status || "active";
+  elements.accountVerified.textContent = user.verifiedAt ? formatDateTimeFromIso(user.verifiedAt) : "-";
+}
+
 function getFilteredExpenses() {
   return state.expenses
     .filter((expense) => !state.filters.week || isDateInWeek(expense.date, state.filters.week))
@@ -1043,6 +1305,10 @@ function getGroup(name) {
 
 async function loadRemoteData() {
   const data = await apiRequest("bootstrap", { token: state.token });
+  if (data.user) {
+    state.user = data.user;
+    sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
+  }
 
   state.groups = dedupeGroups((data.groups || []).map((group, index) => ({
     name: group.name,
@@ -1272,6 +1538,157 @@ function exportData() {
   URL.revokeObjectURL(url);
 }
 
+function exportPdfReport() {
+  const now = new Date();
+  const lines = buildReportLines(now);
+  const pdf = createPdfDocument(lines);
+  const blob = new Blob([pdf], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `faststack-expense-report-${getCurrentISTDate()}.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function buildReportLines(generatedAt) {
+  const groupSummaries = getGroupSummaries().sort((a, b) => a.name.localeCompare(b.name));
+  const transactions = [...state.cashIns.map((entry) => ({ ...entry, type: "Cash In" })), ...state.expenses.map((entry) => ({ ...entry, type: "Expense" }))]
+    .sort(sortLedgerAsc);
+  const totalCashIn = sum(state.cashIns);
+  const totalExpenses = sum(state.expenses);
+  const currentGroup = elements.projectGroupSelect.value || getDefaultProjectGroup();
+  const groupLedger = currentGroup ? getGroupLedgerEntries(currentGroup) : [];
+
+  const lines = [
+    { text: "FastStack Expense Tracker", size: 18, bold: true },
+    { text: `Expense Report - ${formatDateTimeFromIso(generatedAt.toISOString())}`, size: 11 },
+    { text: `User: ${state.user?.email || "-"}`, size: 10 },
+    { text: "" },
+    { text: "Summary", size: 14, bold: true },
+    { text: `Total Cash In: ${formatReportAmount(totalCashIn)}` },
+    { text: `Total Cash Out: ${formatReportAmount(totalExpenses)}` },
+    { text: `Running Balance: ${formatReportAmount(totalCashIn - totalExpenses)}` },
+    { text: `Groups: ${state.groups.length}` },
+    { text: "" },
+    { text: "Category Balances", size: 14, bold: true },
+    { text: "Group | Cash In | Spent | Balance", bold: true },
+    ...groupSummaries.map((group) => ({
+      text: `${group.name} | ${formatReportAmount(group.allocated)} | ${formatReportAmount(group.spent)} | ${formatReportAmount(group.remaining)}`,
+    })),
+    { text: "" },
+    { text: `Selected Group Ledger: ${currentGroup || "-"}`, size: 14, bold: true },
+    { text: "Date/Time | Type | Amount | Balance | Description", bold: true },
+    ...buildLedgerReportLines(groupLedger),
+    { text: "" },
+    { text: "All Transactions", size: 14, bold: true },
+    { text: "Date/Time | Type | Group | Amount | Description | Notes", bold: true },
+    ...transactions.map((entry) => ({
+      text: `${formatDateTime(entry.date, entry.time)} | ${entry.type} | ${entry.category} | ${formatReportAmount(entry.amount)} | ${entry.description} | ${entry.notes || ""}`,
+    })),
+    { text: "" },
+    { text: "Daily Expense Breakdown", size: 14, bold: true },
+    ...groupExpensesByDate(state.expenses).flatMap(([date, items]) => [
+      { text: `${formatDate(date)} - ${formatReportAmount(sum(items))}`, bold: true },
+      ...items.map((expense) => ({ text: `  ${expense.description} | ${expense.category} | ${formatReportAmount(expense.amount)}` })),
+    ]),
+  ];
+
+  return lines.length ? lines : [{ text: "No report data available." }];
+}
+
+function buildLedgerReportLines(entries) {
+  let balance = 0;
+  return entries.map((entry) => {
+    balance += entry.type === "cash-in" ? entry.amount : -entry.amount;
+    return {
+      text: `${formatDateTime(entry.date, entry.time)} | ${entry.type === "cash-in" ? "Cash In" : "Expense"} | ${formatReportAmount(entry.amount)} | ${formatReportAmount(balance)} | ${entry.description}`,
+    };
+  });
+}
+
+function formatReportAmount(value) {
+  return `${state.settings.currency} ${Number(value || 0).toLocaleString("en", { maximumFractionDigits: 2 })}`;
+}
+
+function createPdfDocument(lines) {
+  const pageWidth = 612;
+  const pageHeight = 792;
+  const margin = 42;
+  const lineHeight = 15;
+  const maxChars = 105;
+  const rowsPerPage = Math.floor((pageHeight - margin * 2) / lineHeight);
+  const rows = lines.flatMap((line) => wrapPdfLine(line, maxChars));
+  const pages = [];
+  for (let index = 0; index < rows.length; index += rowsPerPage) {
+    pages.push(rows.slice(index, index + rowsPerPage));
+  }
+
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+  ];
+  const pageObjectNumbers = [];
+  pages.forEach((pageRows) => {
+    const pageObjectNumber = objects.length + 1;
+    const contentObjectNumber = objects.length + 2;
+    pageObjectNumbers.push(pageObjectNumber);
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`);
+    const stream = buildPdfPageStream(pageRows, margin, pageHeight - margin, lineHeight);
+    objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+  });
+  objects[1] = `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pageObjectNumbers.length} >>`;
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return pdf;
+}
+
+function wrapPdfLine(line, maxChars) {
+  const text = String(line.text || "");
+  if (text.length <= maxChars) {
+    return [line];
+  }
+  const rows = [];
+  let remaining = text;
+  while (remaining.length > maxChars) {
+    const splitAt = Math.max(remaining.lastIndexOf(" ", maxChars), Math.floor(maxChars * 0.75));
+    rows.push({ ...line, text: remaining.slice(0, splitAt), size: line.size || 9 });
+    remaining = remaining.slice(splitAt).trim();
+  }
+  rows.push({ ...line, text: remaining, size: line.size || 9 });
+  return rows;
+}
+
+function buildPdfPageStream(rows, x, startY, lineHeight) {
+  return rows.map((row, index) => {
+    const y = startY - index * lineHeight;
+    const font = row.bold ? "F2" : "F1";
+    const size = row.size || 9;
+    return `BT /${font} ${size} Tf ${x} ${y} Td (${escapePdfText(row.text)}) Tj ET`;
+  }).join("\n");
+}
+
+function escapePdfText(value) {
+  return String(value)
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+}
+
 function normalizeTransaction(transaction) {
   return {
     id: transaction.id || createId("transaction"),
@@ -1487,6 +1904,20 @@ function formatDate(value) {
 function formatDateTime(dateValue, timeValue) {
   const [hours = "00", minutes = "00"] = String(timeValue || "00:00").split(":");
   const date = new Date(`${dateValue}T${hours}:${minutes}:00`);
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatDateTimeFromIso(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
   return new Intl.DateTimeFormat("en", {
     day: "numeric",
     month: "short",

@@ -209,10 +209,18 @@ function handleApiRequest_(request) {
       data = bootstrap_(session);
     } else if (action === "saveGroup") {
       data = saveGroup_(session, request.group);
+    } else if (action === "renameGroup") {
+      data = renameGroup_(session, request.oldName, request.group);
+    } else if (action === "deleteGroup") {
+      data = deleteGroup_(session, request.name);
     } else if (action === "saveTransaction") {
       data = saveTransaction_(session, request.transaction);
     } else if (action === "deleteTransaction") {
       data = deleteTransaction_(session, request.id);
+    } else if (action === "updatePassword") {
+      data = updatePassword_(session, request.currentPassword, request.newPassword);
+    } else if (action === "deleteAccount") {
+      data = deleteAccount_(session);
     } else {
       throw new Error("Unsupported action.");
     }
@@ -452,6 +460,7 @@ function logout_(request) {
 
 function bootstrap_(session) {
   return {
+    user: getUserAccount_(session),
     groups: getGroupsForUser_(session.userId),
     transactions: getTransactionsForUser_(session.userId),
     balances: getBalancesForUser_(session.userId),
@@ -471,6 +480,73 @@ function saveGroup_(session, group) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function renameGroup_(session, oldName, group) {
+  const sourceName = sanitizeText_(oldName, 60, "Group name");
+  const normalized = validateGroup_(group);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const groupsSheet = getSheet_(FASTSTACK_SHEETS.GROUPS.name);
+    const groupsData = groupsSheet.getDataRange().getValues();
+    const groupMap = headerMap_(groupsData[0]);
+    let matchedRow = -1;
+
+    for (let row = 1; row < groupsData.length; row += 1) {
+      const sameUser = groupsData[row][groupMap.userId] === session.userId;
+      const active = !groupsData[row][groupMap.archivedAt];
+      const name = String(groupsData[row][groupMap.name]);
+      if (sameUser && active && name.toLowerCase() === normalized.name.toLowerCase() && name.toLowerCase() !== sourceName.toLowerCase()) {
+        throw new Error("A category with this name already exists.");
+      }
+      if (sameUser && active && name.toLowerCase() === sourceName.toLowerCase()) {
+        matchedRow = row + 1;
+      }
+    }
+
+    if (matchedRow < 0) {
+      throw new Error("Category not found.");
+    }
+
+    groupsSheet.getRange(matchedRow, groupMap.name + 1).setValue(normalized.name);
+    groupsSheet.getRange(matchedRow, groupMap.color + 1).setValue(normalized.color);
+    groupsSheet.getRange(matchedRow, groupMap.updatedAt + 1).setValue(nowIso_());
+    renameTransactionCategory_(session.userId, sourceName, normalized.name);
+    refreshBalances_(session.userId);
+    logHistory_(session, "renameGroup", "category", normalized.name, sourceName + " -> " + normalized.name);
+    return { group: normalized };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteGroup_(session, name) {
+  const groupName = sanitizeText_(name, 60, "Group name");
+  const hasEntries = getTransactionsForUser_(session.userId).some(function (transaction) {
+    return transaction.category.toLowerCase() === groupName.toLowerCase();
+  });
+  if (hasEntries) {
+    throw new Error("This category has transactions. Move or delete those entries first.");
+  }
+
+  const groupsSheet = getSheet_(FASTSTACK_SHEETS.GROUPS.name);
+  const groupsData = groupsSheet.getDataRange().getValues();
+  const map = headerMap_(groupsData[0]);
+  const now = nowIso_();
+
+  for (let row = 1; row < groupsData.length; row += 1) {
+    if (groupsData[row][map.userId] === session.userId && String(groupsData[row][map.name]).toLowerCase() === groupName.toLowerCase() && !groupsData[row][map.archivedAt]) {
+      groupsSheet.getRange(row + 1, map.archivedAt + 1).setValue(now);
+      groupsSheet.getRange(row + 1, map.updatedAt + 1).setValue(now);
+      refreshBalances_(session.userId);
+      logHistory_(session, "deleteGroup", "category", groupName, "");
+      return { deleted: true };
+    }
+  }
+
+  throw new Error("Category not found.");
 }
 
 function saveTransaction_(session, transaction) {
@@ -510,6 +586,53 @@ function deleteTransaction_(session, id) {
   }
 
   throw new Error("Transaction not found.");
+}
+
+function updatePassword_(session, currentPassword, newPassword) {
+  const currentMaterial = normalizePasswordMaterial_(session.email, currentPassword);
+  const newMaterial = normalizePasswordMaterial_(session.email, newPassword);
+  const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
+  const data = usersSheet.getDataRange().getValues();
+  const map = headerMap_(data[0]);
+  const now = nowIso_();
+
+  for (let row = 1; row < data.length; row += 1) {
+    if (data[row][map.userId] === session.userId && String(data[row][map.email]).toLowerCase() === session.email) {
+      if (data[row][map.passwordHash] !== hashPassword_(currentMaterial, data[row][map.passwordSalt])) {
+        throw new Error("Current password is incorrect.");
+      }
+
+      const salt = Utilities.getUuid();
+      usersSheet.getRange(row + 1, map.passwordSalt + 1).setValue(salt);
+      usersSheet.getRange(row + 1, map.passwordHash + 1).setValue(hashPassword_(newMaterial, salt));
+      usersSheet.getRange(row + 1, map.updatedAt + 1).setValue(now);
+      logHistory_(session, "updatePassword", "user", session.userId, "");
+      return { updated: true };
+    }
+  }
+
+  throw new Error("Account not found.");
+}
+
+function deleteAccount_(session) {
+  const now = nowIso_();
+  const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
+  const usersData = usersSheet.getDataRange().getValues();
+  const usersMap = headerMap_(usersData[0]);
+
+  for (let row = 1; row < usersData.length; row += 1) {
+    if (usersData[row][usersMap.userId] === session.userId) {
+      usersSheet.getRange(row + 1, usersMap.status + 1).setValue("deleted");
+      usersSheet.getRange(row + 1, usersMap.updatedAt + 1).setValue(now);
+    }
+  }
+
+  archiveGroupsForUser_(session.userId, now);
+  deleteTransactionsForUser_(session.userId, now);
+  removeBalancesForUser_(session.userId);
+  revokeSessionsForUser_(session.userId, now);
+  logHistory_(session, "deleteAccount", "user", session.userId, "");
+  return { deleted: true };
 }
 
 function requireSession_(token) {
@@ -561,6 +684,20 @@ function upsertGroup_(userId, name, color) {
     archivedAt: "",
   });
   return { name: name, color: color };
+}
+
+function renameTransactionCategory_(userId, oldName, newName) {
+  const sheet = getSheet_(FASTSTACK_SHEETS.TRANSACTIONS.name);
+  const data = sheet.getDataRange().getValues();
+  const map = headerMap_(data[0]);
+  const now = nowIso_();
+
+  for (let row = 1; row < data.length; row += 1) {
+    if (data[row][map.userId] === userId && !data[row][map.deletedAt] && String(data[row][map.category]).toLowerCase() === oldName.toLowerCase()) {
+      sheet.getRange(row + 1, map.category + 1).setValue(newName);
+      sheet.getRange(row + 1, map.updatedAt + 1).setValue(now);
+    }
+  }
 }
 
 function upsertTransaction_(userId, transaction) {
@@ -710,6 +847,69 @@ function getBalancesForUser_(userId) {
         balance: Number(row.balance),
       };
     });
+}
+
+function getUserAccount_(session) {
+  const users = readObjects_(getSheet_(FASTSTACK_SHEETS.USERS.name));
+  const user = users.find(function (row) {
+    return row.userId === session.userId;
+  });
+  if (!user) {
+    throw new Error("Account not found.");
+  }
+
+  return {
+    email: user.email,
+    role: user.role || "user",
+    status: user.status || "active",
+    createdAt: sheetDateTimeToIso_(user.createdAt),
+    updatedAt: sheetDateTimeToIso_(user.updatedAt),
+    lastLoginAt: sheetDateTimeToIso_(user.lastLoginAt),
+    verifiedAt: sheetDateTimeToIso_(user.verifiedAt),
+  };
+}
+
+function archiveGroupsForUser_(userId, now) {
+  const sheet = getSheet_(FASTSTACK_SHEETS.GROUPS.name);
+  const data = sheet.getDataRange().getValues();
+  const map = headerMap_(data[0]);
+  for (let row = 1; row < data.length; row += 1) {
+    if (data[row][map.userId] === userId && !data[row][map.archivedAt]) {
+      sheet.getRange(row + 1, map.archivedAt + 1).setValue(now);
+      sheet.getRange(row + 1, map.updatedAt + 1).setValue(now);
+    }
+  }
+}
+
+function deleteTransactionsForUser_(userId, now) {
+  const sheet = getSheet_(FASTSTACK_SHEETS.TRANSACTIONS.name);
+  const data = sheet.getDataRange().getValues();
+  const map = headerMap_(data[0]);
+  for (let row = 1; row < data.length; row += 1) {
+    if (data[row][map.userId] === userId && !data[row][map.deletedAt]) {
+      sheet.getRange(row + 1, map.deletedAt + 1).setValue(now);
+      sheet.getRange(row + 1, map.updatedAt + 1).setValue(now);
+    }
+  }
+}
+
+function removeBalancesForUser_(userId) {
+  const sheet = getSheet_(FASTSTACK_SHEETS.BALANCES.name);
+  const rows = readObjects_(sheet).filter(function (row) {
+    return row.userId !== userId;
+  });
+  rewriteObjects_(sheet, FASTSTACK_SHEETS.BALANCES.headers, rows);
+}
+
+function revokeSessionsForUser_(userId, now) {
+  const sheet = getSheet_(FASTSTACK_SHEETS.SESSIONS.name);
+  const data = sheet.getDataRange().getValues();
+  const map = headerMap_(data[0]);
+  for (let row = 1; row < data.length; row += 1) {
+    if (data[row][map.userId] === userId && !data[row][map.revokedAt]) {
+      sheet.getRange(row + 1, map.revokedAt + 1).setValue(now);
+    }
+  }
 }
 
 function validateGroup_(group) {
@@ -1083,6 +1283,17 @@ function sheetTimeToInput_(value) {
   }
 
   return "00:00";
+}
+
+function sheetDateTimeToIso_(value) {
+  if (!value) {
+    return "";
+  }
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  const parsed = new Date(String(value));
+  return isNaN(parsed.getTime()) ? String(value) : parsed.toISOString();
 }
 
 function sendVerificationEmail_(email, code) {

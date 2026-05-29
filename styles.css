@@ -85,7 +85,7 @@ button {
 }
 
 .toolbar {
-  grid-template-columns: auto auto auto;
+  grid-template-columns: auto auto auto auto;
   align-items: end;
 }
 
@@ -736,6 +736,78 @@ table {
   min-width: 720px;
 }
 
+.management-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  gap: 18px;
+}
+
+.management-panel {
+  min-width: 0;
+}
+
+.inline-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 84px auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.color-field input {
+  min-width: 64px;
+  padding: 6px;
+}
+
+.compact-table-wrap {
+  margin-top: 10px;
+}
+
+.management-table {
+  min-width: 760px;
+}
+
+.management-table .actions-col {
+  width: 184px;
+}
+
+.account-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.account-summary div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.account-summary dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.account-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.account-form {
+  margin-bottom: 12px;
+}
+
+.danger-button {
+  width: 100%;
+  color: var(--danger);
+}
+
 th,
 td {
   border-bottom: 1px solid var(--line);
@@ -820,6 +892,7 @@ td {
   .summary-grid,
   .workspace,
   .analytics-grid,
+  .management-grid,
   .daily-breakdown,
   .sheet-meta {
     grid-template-columns: 1fr 1fr;
@@ -844,6 +917,9 @@ td {
   .summary-grid,
   .workspace,
   .analytics-grid,
+  .management-grid,
+  .inline-form,
+  .account-summary,
   .daily-breakdown,
   .sheet-meta,
   .detail-grid,

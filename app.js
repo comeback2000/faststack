@@ -143,9 +143,7 @@ async function initialize() {
   try {
     await bootDashboard();
   } catch (loadError) {
-    clearAuthSession();
-    showAuthMessage(loadError.message || "Your session expired. Please log in again.", true);
-    setAuthenticated(false);
+    handleDashboardLoadError(loadError, "Could not load dashboard data.");
   }
 }
 
@@ -269,9 +267,7 @@ async function handleLogin(event) {
   try {
     await bootDashboard();
   } catch (loadError) {
-    clearAuthSession();
-    showAuthMessage(loadError.message || "Could not load database data.", true);
-    setAuthenticated(false);
+    handleDashboardLoadError(loadError, "Could not load database data.");
   }
 }
 
@@ -1195,6 +1191,29 @@ function readStoredUser() {
   }
 }
 
+function handleDashboardLoadError(error, fallbackMessage) {
+  if (isAuthSessionError(error)) {
+    clearAuthSession();
+    showAuthMessage(error.message || "Your session expired. Please log in again.", true);
+    setAuthenticated(false);
+    return;
+  }
+
+  console.error(error);
+  setAuthenticated(true);
+  showAuthMessage("");
+  if (elements.formMessage) {
+    elements.formMessage.textContent = error.message || fallbackMessage;
+    elements.formMessage.classList.add("error");
+  }
+  refreshIcons();
+}
+
+function isAuthSessionError(error) {
+  const message = String(error && error.message ? error.message : error || "");
+  return /session expired|invalid session|please log in again/i.test(message);
+}
+
 function fromRemoteTransaction(transaction) {
   return {
     id: transaction.id,
@@ -1202,8 +1221,8 @@ function fromRemoteTransaction(transaction) {
     description: transaction.description || "",
     amount: Number(transaction.amount),
     category: transaction.category || "Other",
-    date: transaction.date || getCurrentISTDate(),
-    time: String(transaction.time || "00:00").slice(0, 5),
+    date: normalizeDateInputValue(transaction.date),
+    time: normalizeTimeInputValue(transaction.time),
     notes: transaction.notes || "",
   };
 }
@@ -1377,6 +1396,43 @@ function getCurrentISTDate() {
 function getCurrentISTTime() {
   const parts = getISTParts();
   return `${parts.hour}:${parts.minute}`;
+}
+
+function normalizeDateInputValue(value) {
+  const raw = String(value || "").trim();
+  const isoDate = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoDate) {
+    return isoDate[1];
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return [
+      parsed.getFullYear(),
+      String(parsed.getMonth() + 1).padStart(2, "0"),
+      String(parsed.getDate()).padStart(2, "0"),
+    ].join("-");
+  }
+
+  return getCurrentISTDate();
+}
+
+function normalizeTimeInputValue(value) {
+  const raw = String(value || "").trim();
+  const time = raw.match(/^(\d{1,2}):(\d{2})/);
+  if (time) {
+    return `${time[1].padStart(2, "0")}:${time[2]}`;
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return [
+      String(parsed.getHours()).padStart(2, "0"),
+      String(parsed.getMinutes()).padStart(2, "0"),
+    ].join(":");
+  }
+
+  return "00:00";
 }
 
 function formatCurrency(value) {

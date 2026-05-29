@@ -651,8 +651,8 @@ function getTransactionsForUser_(userId) {
         description: row.description,
         amount: Number(row.amount),
         category: row.category,
-        date: row.date,
-        time: row.time,
+        date: sheetDateToInput_(row.date),
+        time: sheetTimeToInput_(row.time),
         notes: row.notes || "",
       };
     });
@@ -1004,6 +1004,44 @@ function hashCode_(email, code) {
 
 function minutesFromNowIso_(minutes) {
   return new Date(Date.now() + minutes * 60 * 1000).toISOString();
+}
+
+function sheetDateToInput_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, FASTSTACK_TIME_ZONE, "yyyy-MM-dd");
+  }
+
+  const raw = String(value || "").trim();
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) {
+    return match[1];
+  }
+
+  const parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) {
+    return Utilities.formatDate(parsed, FASTSTACK_TIME_ZONE, "yyyy-MM-dd");
+  }
+
+  return Utilities.formatDate(new Date(), FASTSTACK_TIME_ZONE, "yyyy-MM-dd");
+}
+
+function sheetTimeToInput_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, FASTSTACK_TIME_ZONE, "HH:mm");
+  }
+
+  const raw = String(value || "").trim();
+  const match = raw.match(/^(\d{1,2}):(\d{2})/);
+  if (match) {
+    return ("0" + match[1]).slice(-2) + ":" + match[2];
+  }
+
+  const parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) {
+    return Utilities.formatDate(parsed, FASTSTACK_TIME_ZONE, "HH:mm");
+  }
+
+  return "00:00";
 }
 
 function sendVerificationEmail_(email, code) {

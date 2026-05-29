@@ -117,8 +117,7 @@ function bootDashboard() {
   populateGroupControls();
   elements.currencySelect.value = state.settings.currency;
   elements.weekFilter.value = state.filters.week;
-  elements.dateInput.valueAsDate = new Date();
-  elements.timeInput.value = getCurrentTime();
+  setCurrentISTDateTime();
   if (!state.dashboardBooted) {
     bindEvents();
     state.dashboardBooted = true;
@@ -377,7 +376,7 @@ function editTransaction(transaction, mode) {
   elements.descriptionInput.value = transaction.description;
   elements.amountInput.value = transaction.amount;
   elements.dateInput.value = transaction.date;
-  elements.timeInput.value = transaction.time || getCurrentTime();
+  elements.timeInput.value = transaction.time || getCurrentISTTime();
   elements.notesInput.value = transaction.notes || "";
   elements.formTitle.textContent = mode === "cash-in" ? "Edit Cash In" : "Edit Expense";
   elements.submitButton.innerHTML = `<i data-lucide="save" aria-hidden="true"></i> Save Changes`;
@@ -390,8 +389,7 @@ function editTransaction(transaction, mode) {
 function resetForm() {
   elements.form.reset();
   elements.expenseId.value = "";
-  elements.dateInput.valueAsDate = new Date();
-  elements.timeInput.value = getCurrentTime();
+  setCurrentISTDateTime();
   elements.customGroupField.classList.add("hidden");
   elements.customGroupInput.required = false;
   elements.formMessage.textContent = "";
@@ -867,7 +865,7 @@ function normalizeTransaction(transaction) {
     description: transaction.description || "Untitled",
     amount: Number(transaction.amount) || 0,
     category: transaction.category || transaction.group || "Other",
-    date: transaction.date || toDateInputValue(new Date()),
+    date: transaction.date || getCurrentISTDate(),
     time: transaction.time || "00:00",
     notes: transaction.notes || "",
   };
@@ -1031,11 +1029,33 @@ function toDateInputValue(date) {
   return `${year}-${month}-${day}`;
 }
 
-function getCurrentTime() {
-  const date = new Date();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${hours}:${minutes}`;
+function setCurrentISTDateTime() {
+  elements.dateInput.value = getCurrentISTDate();
+  elements.timeInput.value = getCurrentISTTime();
+}
+
+function getISTParts() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+}
+
+function getCurrentISTDate() {
+  const parts = getISTParts();
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function getCurrentISTTime() {
+  const parts = getISTParts();
+  return `${parts.hour}:${parts.minute}`;
 }
 
 function formatCurrency(value) {

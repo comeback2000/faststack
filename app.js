@@ -1,18 +1,12 @@
-const EXPENSE_STORAGE_KEY = "faststack-expenses-v1";
-const CASH_IN_STORAGE_KEY = "faststack-cash-in-v1";
-const GROUP_STORAGE_KEY = "faststack-groups-v1";
-const SETTINGS_KEY = "faststack-settings-v1";
+const EXPENSE_STORAGE_KEY = "faststack-sheet-expenses-v1";
+const CASH_IN_STORAGE_KEY = "faststack-sheet-cash-in-v1";
+const GROUP_STORAGE_KEY = "faststack-sheet-groups-v1";
+const SETTINGS_KEY = "faststack-sheet-settings-v1";
 const AUTH_STORAGE_KEY = "faststack-authenticated-v1";
 const CUSTOM_GROUP_VALUE = "__custom_group__";
 const APP_PASSWORD_HASH = "0b92dc7e21beb26e28f120e2e198b996cb45b869728be048b5bc7737a552fe01";
 
-const defaultGroups = [
-  { name: "Tour Expenses", color: "#0f766e" },
-  { name: "Petty Cash", color: "#2563eb" },
-  { name: "Office Expenses", color: "#d97706" },
-  { name: "Project Expenses", color: "#7c3aed" },
-  { name: "Other", color: "#64748b" },
-];
+const defaultGroups = [];
 
 const colorPool = [
   "#0f766e",
@@ -26,23 +20,8 @@ const colorPool = [
   "#475569",
 ];
 
-const sampleCashIns = [
-  createCashIn("Opening petty cash", 800, "Petty Cash", daysAgo(1), "10:30", "Weekly float"),
-  createCashIn("Tour advance", 1500, "Tour Expenses", daysAgo(3), "09:45", "North route travel"),
-  createCashIn("Client project allocation", 2200, "Project Expenses", daysAgo(9), "11:15", "Phase one budget"),
-  createCashIn("Office operating fund", 950, "Office Expenses", daysAgo(15), "14:10", ""),
-];
-
-const sampleExpenses = [
-  createExpense("Team lunch during tour", 126.4, "Tour Expenses", daysAgo(1), "13:05", "Field visit"),
-  createExpense("Fuel and tolls", 210, "Tour Expenses", daysAgo(2), "16:20", "Route expenses"),
-  createExpense("Courier charges", 38.5, "Petty Cash", daysAgo(3), "10:45", ""),
-  createExpense("Printer paper", 64.99, "Office Expenses", daysAgo(4), "12:30", ""),
-  createExpense("Prototype materials", 420, "Project Expenses", daysAgo(5), "15:00", "Phase one"),
-  createExpense("Tea and snacks", 28.25, "Petty Cash", daysAgo(8), "17:10", ""),
-  createExpense("Software subscription", 132.5, "Project Expenses", daysAgo(12), "09:20", ""),
-  createExpense("Office bulbs", 76, "Office Expenses", daysAgo(19), "18:00", ""),
-];
+const sampleCashIns = [];
+const sampleExpenses = [];
 
 const state = {
   expenses: loadExpenses(),
@@ -258,6 +237,9 @@ function populateGroupControls() {
   }).join("");
 
   elements.categoryInput.innerHTML = `${options}<option value="${CUSTOM_GROUP_VALUE}">+ Custom group</option>`;
+  if (!state.groups.length) {
+    elements.categoryInput.value = CUSTOM_GROUP_VALUE;
+  }
   elements.categoryFilter.innerHTML = [
     `<option value="All">All groups</option>`,
     ...state.groups.map((group) => `<option value="${escapeAttribute(group.name)}">${escapeHtml(group.name)}</option>`),
@@ -265,12 +247,13 @@ function populateGroupControls() {
   elements.categoryFilter.value = state.filters.group;
 
   const selectedGroup = elements.projectGroupSelect.value || getDefaultProjectGroup();
-  elements.projectGroupSelect.innerHTML = state.groups.map((group) => {
+  elements.projectGroupSelect.innerHTML = state.groups.length ? state.groups.map((group) => {
     return `<option value="${escapeAttribute(group.name)}">${escapeHtml(group.name)}</option>`;
-  }).join("");
+  }).join("") : `<option value="">No project yet</option>`;
   elements.projectGroupSelect.value = state.groups.some((group) => group.name === selectedGroup)
     ? selectedGroup
     : getDefaultProjectGroup();
+  elements.projectGroupSelect.disabled = state.groups.length === 0;
 }
 
 function toggleCustomGroup() {
@@ -448,6 +431,9 @@ function renderGroupLedger() {
   if (!state.groups.length) {
     elements.projectNameLabel.textContent = "-";
     elements.groupLedgerTable.innerHTML = "";
+    elements.groupLedgerCashIn.textContent = formatCurrency(0);
+    elements.groupLedgerCashOut.textContent = formatCurrency(0);
+    elements.groupLedgerBalance.textContent = formatCurrency(0);
     elements.groupLedgerEmptyState.classList.remove("hidden");
     return;
   }

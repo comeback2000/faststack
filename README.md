@@ -6,7 +6,7 @@ A clean, dependency-free personal expense tracker built for GitHub Pages.
 
 - Add, edit, and delete expenses.
 - Add Cash In entries and allocate funds to budget groups.
-- Use default groups such as Tour Expenses, Petty Cash, Office Expenses, Project Expenses, and Other, or create custom groups while entering transactions.
+- Create custom project/groups while entering transactions.
 - Track allocated funds, actual spending, and remaining balances for each group.
 - View a group-wise balance sheet with Project-name, Date/Time, Cash-in, Cash-Out, Balance, and Des columns.
 - Open a Des popup to view full transaction details and notes.
@@ -29,10 +29,10 @@ This is client-side protection for a static GitHub Pages app. To change it, upda
 
 Application data is stored in the browser's `localStorage` on the user's device:
 
-- `faststack-expenses-v1`
-- `faststack-cash-in-v1`
-- `faststack-groups-v1`
-- `faststack-settings-v1`
+- `faststack-sheet-expenses-v1`
+- `faststack-sheet-cash-in-v1`
+- `faststack-sheet-groups-v1`
+- `faststack-sheet-settings-v1`
 
 The app does not currently store expense data in GitHub, Google Sheets, or a database.
 

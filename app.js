@@ -1,8 +1,8 @@
 const SETTINGS_KEY = "faststack-sheet-settings-v1";
-const AUTH_STORAGE_KEY = "faststack-authenticated-v1";
+const AUTH_TOKEN_KEY = "faststack-google-sheets-token-v1";
+const AUTH_USER_KEY = "faststack-google-sheets-user-v1";
 const CUSTOM_GROUP_VALUE = "__custom_group__";
-const SUPABASE_CONFIG = window.FASTSTACK_SUPABASE || {};
-const supabaseClient = createSupabaseClient();
+const BACKEND_CONFIG = window.FASTSTACK_BACKEND || {};
 
 const defaultGroups = [];
 
@@ -26,6 +26,7 @@ const state = {
   mode: "expense",
   dashboardBooted: false,
   user: null,
+  token: null,
   filters: {
     search: "",
     week: getCurrentWeek(),
@@ -100,35 +101,32 @@ initialize();
 async function initialize() {
   bindAuthEvents();
 
-  if (!supabaseClient) {
+  if (!isBackendConfigured()) {
     setAuthenticated(false);
-    elements.loginMessage.textContent = "Database is not configured. Add your Supabase URL and anon key in config.js.";
+    elements.loginMessage.textContent = "Backend API is not configured. Add your Google Apps Script Web App URL in config.js.";
     elements.loginMessage.classList.add("error");
     elements.loginForm.querySelector("button").disabled = true;
     refreshIcons();
     return;
   }
 
-  const { data, error } = await supabaseClient.auth.getSession();
-  if (error) {
-    elements.loginMessage.textContent = error.message;
-    elements.loginMessage.classList.add("error");
-  }
-
-  state.user = data.session?.user || null;
-  setAuthenticated(Boolean(state.user));
-  if (!state.user) {
+  const storedToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
+  const storedUser = readStoredUser();
+  if (!storedToken || !storedUser) {
+    setAuthenticated(false);
     refreshIcons();
     return;
   }
 
+  state.token = storedToken;
+  state.user = storedUser;
+  setAuthenticated(true);
   try {
     await bootDashboard();
   } catch (loadError) {
-    elements.loginMessage.textContent = loadError.message || "Could not load database data.";
+    clearAuthSession();
+    elements.loginMessage.textContent = loadError.message || "Your session expired. Please log in again.";
     elements.loginMessage.classList.add("error");
-    await supabaseClient.auth.signOut();
-    state.user = null;
     setAuthenticated(false);
   }
 }
@@ -150,9 +148,16 @@ async function bootDashboard() {
 function bindAuthEvents() {
   elements.loginForm.addEventListener("submit", handleLogin);
   elements.logoutButton.addEventListener("click", async () => {
-    await supabaseClient?.auth.signOut();
-    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    if (state.token) {
+      try {
+        await apiRequest("logout", { token: state.token });
+      } catch {
+        // Logout must clear the local session even if the network request fails.
+      }
+    }
+    clearAuthSession();
     state.user = null;
+    state.token = null;
     state.expenses = [];
     state.cashIns = [];
     state.groups = [];
@@ -215,22 +220,26 @@ async function handleLogin(event) {
 
   const email = elements.emailInput.value.trim();
   const password = elements.passwordInput.value;
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
-  if (error) {
-    elements.loginMessage.textContent = error.message;
+  try {
+    const result = await apiRequest("login", { email, password });
+    state.token = result.token;
+    state.user = result.user;
+    sessionStorage.setItem(AUTH_TOKEN_KEY, result.token);
+    sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(result.user));
+  } catch (error) {
+    elements.loginMessage.textContent = error.message || "Login failed.";
     elements.loginMessage.classList.add("error");
     return;
   }
 
-  sessionStorage.setItem(AUTH_STORAGE_KEY, "true");
-  state.user = data.user;
   elements.loginMessage.textContent = "";
   elements.loginMessage.classList.remove("error");
   setAuthenticated(true);
   try {
     await bootDashboard();
   } catch (loadError) {
+    clearAuthSession();
     elements.loginMessage.textContent = loadError.message || "Could not load database data.";
     elements.loginMessage.classList.add("error");
     setAuthenticated(false);
@@ -844,42 +853,15 @@ function getGroup(name) {
   return state.groups.find((item) => item.name === name) || defaultGroups[defaultGroups.length - 1];
 }
 
-function createSupabaseClient() {
-  const hasConfig = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey);
-  if (!hasConfig || !window.supabase?.createClient) {
-    return null;
-  }
-
-  return window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
-}
-
 async function loadRemoteData() {
-  const [groupResult, transactionResult] = await Promise.all([
-    supabaseClient
-      .from("groups")
-      .select("name,color")
-      .order("created_at", { ascending: true }),
-    supabaseClient
-      .from("transactions")
-      .select("id,type,description,amount,category,transaction_date,transaction_time,notes")
-      .order("transaction_date", { ascending: true })
-      .order("transaction_time", { ascending: true }),
-  ]);
+  const data = await apiRequest("bootstrap", { token: state.token });
 
-  if (groupResult.error) {
-    throw new Error(groupResult.error.message);
-  }
-
-  if (transactionResult.error) {
-    throw new Error(transactionResult.error.message);
-  }
-
-  state.groups = dedupeGroups((groupResult.data || []).map((group, index) => ({
+  state.groups = dedupeGroups((data.groups || []).map((group, index) => ({
     name: group.name,
     color: group.color || colorPool[index % colorPool.length],
   })));
 
-  const transactions = (transactionResult.data || []).map(fromRemoteTransaction);
+  const transactions = (data.transactions || []).map(fromRemoteTransaction);
   state.cashIns = transactions.filter((transaction) => transaction.type === "cash-in").map(stripTransactionType);
   state.expenses = transactions.filter((transaction) => transaction.type === "expense").map(stripTransactionType);
 
@@ -892,51 +874,84 @@ async function loadRemoteData() {
 
 async function persistGroup(name) {
   const group = ensureGroup(name);
-  const { error } = await supabaseClient
-    .from("groups")
-    .upsert({
-      user_id: state.user.id,
+  await apiRequest("saveGroup", {
+    token: state.token,
+    group: {
       name: group.name,
       color: group.color,
-    }, { onConflict: "user_id,name" });
-
-  if (error) {
-    throw new Error(error.message);
-  }
+    },
+  });
 }
 
 async function persistTransaction(transaction, type) {
-  const payload = {
-    id: transaction.id,
-    user_id: state.user.id,
-    type,
-    description: transaction.description,
-    amount: transaction.amount,
-    category: transaction.category,
-    transaction_date: transaction.date,
-    transaction_time: transaction.time,
-    notes: transaction.notes || "",
-    updated_at: new Date().toISOString(),
-  };
-
-  const { error } = await supabaseClient
-    .from("transactions")
-    .upsert(payload);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const group = getGroup(transaction.category);
+  await apiRequest("saveTransaction", {
+    token: state.token,
+    transaction: {
+      id: transaction.id,
+      type,
+      description: transaction.description,
+      amount: transaction.amount,
+      category: transaction.category,
+      color: group.color,
+      date: transaction.date,
+      time: transaction.time,
+      notes: transaction.notes || "",
+    },
+  });
 }
 
 async function deleteRemoteTransaction(id) {
-  const { error } = await supabaseClient
-    .from("transactions")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    elements.formMessage.textContent = error.message;
+  try {
+    await apiRequest("deleteTransaction", { token: state.token, id });
+  } catch (error) {
+    elements.formMessage.textContent = error.message || "Could not delete from database.";
     elements.formMessage.classList.add("error");
+  }
+}
+
+function isBackendConfigured() {
+  return Boolean(BACKEND_CONFIG.apiUrl && /^https:\/\/script\.google\.com\/macros\/s\//.test(BACKEND_CONFIG.apiUrl));
+}
+
+async function apiRequest(action, payload = {}) {
+  const response = await fetch(BACKEND_CONFIG.apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8",
+    },
+    body: JSON.stringify({ action, ...payload }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Backend request failed with status ${response.status}.`);
+  }
+
+  const result = await response.json();
+  if (!result.ok) {
+    throw new Error(result.error || "Backend request failed.");
+  }
+
+  return result.data || {};
+}
+
+function clearAuthSession() {
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  sessionStorage.removeItem(AUTH_USER_KEY);
+  state.token = null;
+  state.user = null;
+}
+
+function readStoredUser() {
+  const stored = sessionStorage.getItem(AUTH_USER_KEY);
+  if (!stored) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return null;
   }
 }
 
@@ -944,11 +959,11 @@ function fromRemoteTransaction(transaction) {
   return {
     id: transaction.id,
     type: transaction.type,
-    description: transaction.description,
+    description: transaction.description || "",
     amount: Number(transaction.amount),
-    category: transaction.category,
-    date: transaction.transaction_date,
-    time: String(transaction.transaction_time || "00:00").slice(0, 5),
+    category: transaction.category || "Other",
+    date: transaction.date || getCurrentISTDate(),
+    time: String(transaction.time || "00:00").slice(0, 5),
     notes: transaction.notes || "",
   };
 }

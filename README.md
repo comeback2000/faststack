@@ -1,45 +1,65 @@
 # FastStack Expense Tracker
 
-A clean, dependency-free personal expense tracker built for GitHub Pages.
+A clean personal expense tracker for GitHub Pages with a private Google Sheets database behind a secure Google Apps Script API.
 
 ## Features
 
 - Add, edit, and delete expenses.
-- Add Cash In entries and allocate funds to budget groups.
-- Create custom project/groups while entering transactions.
+- Add Cash In entries and allocate funds to project/categories.
 - Track allocated funds, actual spending, and remaining balances for each group.
-- View a group-wise balance sheet with Project-name, Date/Time, Cash-in, Cash-Out, Balance, and Des columns.
+- View a group-wise balance sheet with Date/Time, Cash-in, Cash-Out, Balance, and Des columns.
 - Open a Des popup to view full transaction details and notes.
 - Filter by week, group, or search text.
-- View weekly spend, weekly cash in, running balance, and active groups.
-- Track six-week spending trends and daily expense breakdowns grouped by date.
-- Email/password login with Supabase Auth.
-- Save project groups and transactions in a centralized Supabase database.
-- Export expenses, cash-in entries, groups, and settings as JSON.
-
-## Login
-
-Login uses Supabase Auth. Create authorized users in the Supabase project, then sign in with their email and password.
+- Use IST as the default Date and Time while still allowing manual edits before saving.
+- View daily expense breakdowns grouped by date.
+- Use email/password login backed by the Apps Script API.
+- Store users, sessions, categories, transactions, balances, and transaction history in Google Sheets.
 
 ## Data Storage
 
-Application data is stored in Supabase Postgres:
+Application data is stored in a private Google Sheet. The frontend never receives the spreadsheet ID and never talks to Google Sheets directly.
 
-- `groups`
-- `transactions`
-
-The database schema and row-level security policies are in `supabase-schema.sql`. Run that SQL in the Supabase SQL editor before using the app.
-
-Configure the browser-safe Supabase project values in `config.js`:
+All browser requests go to the Google Apps Script Web App URL configured in `config.js`:
 
 ```js
-window.FASTSTACK_SUPABASE = {
-  url: "https://YOUR_PROJECT.supabase.co",
-  anonKey: "YOUR_SUPABASE_ANON_KEY",
+window.FASTSTACK_BACKEND = {
+  apiUrl: "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec",
 };
 ```
 
-The app no longer relies on browser-only storage for expenses, cash-in records, groups, or balances.
+Only the currency preference is kept in browser Local Storage. Expenses, cash-in records, categories, balances, users, sessions, and transaction history are centralized in Google Sheets and reloaded after login.
+
+## Google Sheets Backend Setup
+
+1. Open [Google Apps Script](https://script.google.com/) and create a new project.
+2. Paste `google-apps-script/Code.gs` into the Apps Script editor.
+3. Run `setupFastStackBackend()` once. Approve the requested Google permissions.
+4. Run `createUser('you@example.com', 'StrongPasswordHere', 'admin')` to create your first authorized user.
+5. Deploy the Apps Script project as a Web App:
+   - Execute as: **Me**
+   - Who has access: **Anyone**
+6. Copy the Web App URL ending in `/exec`.
+7. Paste that URL into `config.js`.
+8. Push the project to GitHub Pages.
+
+The setup function creates these sheets:
+
+- `Users`: password salts/hashes, roles, account status.
+- `Sessions`: hashed API session tokens and expiry timestamps.
+- `Categories`: user-owned project/category groups.
+- `Transactions`: cash-in and expense records, with soft deletion.
+- `Balances`: category allocation, spend, and remaining balance snapshots.
+- `TransactionHistory`: audit history for login, group, save, and delete actions.
+
+## Security Notes
+
+- Keep the Google Sheet private; do not share it publicly.
+- Deploy the Web App as **Execute as Me** so the spreadsheet can stay hidden from users.
+- User passwords are salted and hashed in Apps Script before storage.
+- Session tokens are stored hashed in the sheet and expire automatically.
+- All API actions except login require a valid session token.
+- The backend validates IDs, emails, dates, times, amount ranges, transaction types, colors, and text lengths.
+- Text input is sanitized before being written to Sheets, including protection against formula injection using leading `=`, `+`, `-`, or `@`.
 
 ## GitHub Pages
 

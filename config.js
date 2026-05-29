@@ -1,4 +1,3 @@
-window.FASTSTACK_SUPABASE = {
-  url: "",
-  anonKey: "",
+window.FASTSTACK_BACKEND = {
+  apiUrl: "",
 };

@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=ist-amount-1">
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script defer src="app.js?v=ist-amount-1"></script>
+    <script defer src="app.js?v=supabase-db-1"></script>
   </head>
   <body>
     <section class="login-screen" id="loginScreen" aria-label="Login">
@@ -18,6 +18,10 @@
         <div class="login-mark"><i data-lucide="lock-keyhole" aria-hidden="true"></i></div>
         <p class="eyebrow">Protected Access</p>
         <h1>FastStack Expense Tracker</h1>
+        <label class="field">
+          <span>Email</span>
+          <input id="emailInput" type="email" autocomplete="username" placeholder="you@example.com" required>
+        </label>
         <label class="field">
           <span>Password</span>
           <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Enter password" required>
@@ -349,5 +353,7 @@
         </dl>
       </section>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
   </body>
 </html>

@@ -1,10 +1,8 @@
-const EXPENSE_STORAGE_KEY = "faststack-sheet-expenses-v1";
-const CASH_IN_STORAGE_KEY = "faststack-sheet-cash-in-v1";
-const GROUP_STORAGE_KEY = "faststack-sheet-groups-v1";
 const SETTINGS_KEY = "faststack-sheet-settings-v1";
 const AUTH_STORAGE_KEY = "faststack-authenticated-v1";
 const CUSTOM_GROUP_VALUE = "__custom_group__";
-const APP_PASSWORD_HASH = "0b92dc7e21beb26e28f120e2e198b996cb45b869728be048b5bc7737a552fe01";
+const SUPABASE_CONFIG = window.FASTSTACK_SUPABASE || {};
+const supabaseClient = createSupabaseClient();
 
 const defaultGroups = [];
 
@@ -20,16 +18,14 @@ const colorPool = [
   "#475569",
 ];
 
-const sampleCashIns = [];
-const sampleExpenses = [];
-
 const state = {
-  expenses: loadExpenses(),
-  cashIns: loadCashIns(),
+  expenses: [],
+  cashIns: [],
   groups: [],
   settings: loadSettings(),
   mode: "expense",
   dashboardBooted: false,
+  user: null,
   filters: {
     search: "",
     week: getCurrentWeek(),
@@ -37,12 +33,11 @@ const state = {
   },
 };
 
-state.groups = loadGroups();
-
 const elements = {
   appShell: document.querySelector("#appShell"),
   loginScreen: document.querySelector("#loginScreen"),
   loginForm: document.querySelector("#loginForm"),
+  emailInput: document.querySelector("#emailInput"),
   passwordInput: document.querySelector("#passwordInput"),
   loginMessage: document.querySelector("#loginMessage"),
   currencySelect: document.querySelector("#currencySelect"),
@@ -102,18 +97,44 @@ const elements = {
 
 initialize();
 
-function initialize() {
+async function initialize() {
   bindAuthEvents();
-  setAuthenticated(isAuthenticated());
-  if (!isAuthenticated()) {
+
+  if (!supabaseClient) {
+    setAuthenticated(false);
+    elements.loginMessage.textContent = "Database is not configured. Add your Supabase URL and anon key in config.js.";
+    elements.loginMessage.classList.add("error");
+    elements.loginForm.querySelector("button").disabled = true;
     refreshIcons();
     return;
   }
 
-  bootDashboard();
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    elements.loginMessage.textContent = error.message;
+    elements.loginMessage.classList.add("error");
+  }
+
+  state.user = data.session?.user || null;
+  setAuthenticated(Boolean(state.user));
+  if (!state.user) {
+    refreshIcons();
+    return;
+  }
+
+  try {
+    await bootDashboard();
+  } catch (loadError) {
+    elements.loginMessage.textContent = loadError.message || "Could not load database data.";
+    elements.loginMessage.classList.add("error");
+    await supabaseClient.auth.signOut();
+    state.user = null;
+    setAuthenticated(false);
+  }
 }
 
-function bootDashboard() {
+async function bootDashboard() {
+  await loadRemoteData();
   populateGroupControls();
   elements.currencySelect.value = state.settings.currency;
   elements.weekFilter.value = state.filters.week;
@@ -128,12 +149,18 @@ function bootDashboard() {
 
 function bindAuthEvents() {
   elements.loginForm.addEventListener("submit", handleLogin);
-  elements.logoutButton.addEventListener("click", () => {
+  elements.logoutButton.addEventListener("click", async () => {
+    await supabaseClient?.auth.signOut();
     sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    state.user = null;
+    state.expenses = [];
+    state.cashIns = [];
+    state.groups = [];
     setAuthenticated(false);
+    elements.emailInput.value = "";
     elements.passwordInput.value = "";
     elements.loginMessage.textContent = "";
-    elements.passwordInput.focus();
+    elements.emailInput.focus();
   });
 }
 
@@ -183,20 +210,31 @@ function bindEvents() {
 
 async function handleLogin(event) {
   event.preventDefault();
-  const password = elements.passwordInput.value;
-  const passwordHash = await sha256(password);
+  elements.loginMessage.textContent = "";
+  elements.loginMessage.classList.remove("error");
 
-  if (passwordHash !== APP_PASSWORD_HASH) {
-    elements.loginMessage.textContent = "Incorrect password.";
+  const email = elements.emailInput.value.trim();
+  const password = elements.passwordInput.value;
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    elements.loginMessage.textContent = error.message;
     elements.loginMessage.classList.add("error");
     return;
   }
 
   sessionStorage.setItem(AUTH_STORAGE_KEY, "true");
+  state.user = data.user;
   elements.loginMessage.textContent = "";
   elements.loginMessage.classList.remove("error");
   setAuthenticated(true);
-  bootDashboard();
+  try {
+    await bootDashboard();
+  } catch (loadError) {
+    elements.loginMessage.textContent = loadError.message || "Could not load database data.";
+    elements.loginMessage.classList.add("error");
+    setAuthenticated(false);
+  }
 }
 
 function setAuthenticated(authenticated) {
@@ -205,7 +243,7 @@ function setAuthenticated(authenticated) {
 }
 
 function isAuthenticated() {
-  return sessionStorage.getItem(AUTH_STORAGE_KEY) === "true";
+  return Boolean(state.user);
 }
 
 function setMode(mode) {
@@ -261,7 +299,7 @@ function toggleCustomGroup() {
   elements.customGroupInput.required = isCustom;
 }
 
-function handleSubmit(event) {
+async function handleSubmit(event) {
   event.preventDefault();
 
   const group = resolveSelectedGroup();
@@ -281,12 +319,18 @@ function handleSubmit(event) {
     return;
   }
 
+  try {
+    await persistGroup(transaction.category);
+    await persistTransaction(transaction, currentMode);
+  } catch (error) {
+    showFormMessage(error.message || "Could not save to database.", true);
+    return;
+  }
+
   if (currentMode === "cash-in") {
     upsertTransaction(state.cashIns, transaction);
-    saveCashIns();
   } else {
     upsertTransaction(state.expenses, transaction);
-    saveExpenses();
   }
 
   state.filters.week = getWeekValue(new Date(`${transaction.date}T00:00:00`));
@@ -324,6 +368,10 @@ function resolveSelectedGroup() {
 }
 
 function handleExpenseTableClick(event) {
+  void handleExpenseTableClickAsync(event);
+}
+
+async function handleExpenseTableClickAsync(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) {
     return;
@@ -340,12 +388,16 @@ function handleExpenseTableClick(event) {
 
   if (button.dataset.action === "delete") {
     state.expenses = state.expenses.filter((item) => item.id !== expense.id);
-    saveExpenses();
+    await deleteRemoteTransaction(expense.id);
     render();
   }
 }
 
 function handleCashInTableClick(event) {
+  void handleCashInTableClickAsync(event);
+}
+
+async function handleCashInTableClickAsync(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) {
     return;
@@ -362,7 +414,7 @@ function handleCashInTableClick(event) {
 
   if (button.dataset.action === "delete") {
     state.cashIns = state.cashIns.filter((item) => item.id !== cashIn.id);
-    saveCashIns();
+    await deleteRemoteTransaction(cashIn.id);
     render();
   }
 }
@@ -765,20 +817,21 @@ function getTransactionDate(transaction) {
 function ensureGroup(name) {
   const normalized = name.trim();
   if (!normalized) {
-    return;
+    return null;
   }
 
-  const exists = state.groups.some((group) => group.name.toLowerCase() === normalized.toLowerCase());
-  if (exists) {
-    return;
+  const existing = state.groups.find((group) => group.name.toLowerCase() === normalized.toLowerCase());
+  if (existing) {
+    return existing;
   }
 
-  state.groups.push({
+  const group = {
     name: normalized,
     color: colorPool[state.groups.length % colorPool.length],
-  });
-  saveGroups();
+  };
+  state.groups.push(group);
   populateGroupControls();
+  return group;
 }
 
 function getGroup(name) {
@@ -789,6 +842,120 @@ function getGroup(name) {
 
   ensureGroup(name);
   return state.groups.find((item) => item.name === name) || defaultGroups[defaultGroups.length - 1];
+}
+
+function createSupabaseClient() {
+  const hasConfig = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey);
+  if (!hasConfig || !window.supabase?.createClient) {
+    return null;
+  }
+
+  return window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+}
+
+async function loadRemoteData() {
+  const [groupResult, transactionResult] = await Promise.all([
+    supabaseClient
+      .from("groups")
+      .select("name,color")
+      .order("created_at", { ascending: true }),
+    supabaseClient
+      .from("transactions")
+      .select("id,type,description,amount,category,transaction_date,transaction_time,notes")
+      .order("transaction_date", { ascending: true })
+      .order("transaction_time", { ascending: true }),
+  ]);
+
+  if (groupResult.error) {
+    throw new Error(groupResult.error.message);
+  }
+
+  if (transactionResult.error) {
+    throw new Error(transactionResult.error.message);
+  }
+
+  state.groups = dedupeGroups((groupResult.data || []).map((group, index) => ({
+    name: group.name,
+    color: group.color || colorPool[index % colorPool.length],
+  })));
+
+  const transactions = (transactionResult.data || []).map(fromRemoteTransaction);
+  state.cashIns = transactions.filter((transaction) => transaction.type === "cash-in").map(stripTransactionType);
+  state.expenses = transactions.filter((transaction) => transaction.type === "expense").map(stripTransactionType);
+
+  const transactionGroups = transactions.map((transaction, index) => ({
+    name: transaction.category,
+    color: colorPool[(state.groups.length + index) % colorPool.length],
+  }));
+  state.groups = dedupeGroups([...state.groups, ...transactionGroups]);
+}
+
+async function persistGroup(name) {
+  const group = ensureGroup(name);
+  const { error } = await supabaseClient
+    .from("groups")
+    .upsert({
+      user_id: state.user.id,
+      name: group.name,
+      color: group.color,
+    }, { onConflict: "user_id,name" });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function persistTransaction(transaction, type) {
+  const payload = {
+    id: transaction.id,
+    user_id: state.user.id,
+    type,
+    description: transaction.description,
+    amount: transaction.amount,
+    category: transaction.category,
+    transaction_date: transaction.date,
+    transaction_time: transaction.time,
+    notes: transaction.notes || "",
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabaseClient
+    .from("transactions")
+    .upsert(payload);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function deleteRemoteTransaction(id) {
+  const { error } = await supabaseClient
+    .from("transactions")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    elements.formMessage.textContent = error.message;
+    elements.formMessage.classList.add("error");
+  }
+}
+
+function fromRemoteTransaction(transaction) {
+  return {
+    id: transaction.id,
+    type: transaction.type,
+    description: transaction.description,
+    amount: Number(transaction.amount),
+    category: transaction.category,
+    date: transaction.transaction_date,
+    time: String(transaction.transaction_time || "00:00").slice(0, 5),
+    notes: transaction.notes || "",
+  };
+}
+
+function stripTransactionType(transaction) {
+  const { type, ...rest } = transaction;
+  return rest;
 }
 
 function exportData() {
@@ -805,58 +972,6 @@ function exportData() {
   link.download = "faststack-budget-tracker.json";
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function loadExpenses() {
-  const stored = localStorage.getItem(EXPENSE_STORAGE_KEY);
-  if (!stored) {
-    return sampleExpenses;
-  }
-
-  try {
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed.map(normalizeTransaction) : sampleExpenses;
-  } catch {
-    return sampleExpenses;
-  }
-}
-
-function loadCashIns() {
-  const stored = localStorage.getItem(CASH_IN_STORAGE_KEY);
-  if (!stored) {
-    return sampleCashIns;
-  }
-
-  try {
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed.map(normalizeTransaction) : sampleCashIns;
-  } catch {
-    return sampleCashIns;
-  }
-}
-
-function loadGroups() {
-  const stored = localStorage.getItem(GROUP_STORAGE_KEY);
-  const storedGroups = safeParseArray(stored).map(normalizeGroup);
-  const transactionGroups = [...state.expenses, ...state.cashIns]
-    .map((transaction) => transaction.category)
-    .filter(Boolean)
-    .map((name, index) => ({ name, color: colorPool[index % colorPool.length] }));
-
-  return dedupeGroups([...defaultGroups, ...storedGroups, ...transactionGroups]);
-}
-
-function safeParseArray(value) {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
 }
 
 function normalizeTransaction(transaction) {
@@ -897,18 +1012,6 @@ function dedupeGroups(groups) {
   return Array.from(byName.values());
 }
 
-function saveExpenses() {
-  localStorage.setItem(EXPENSE_STORAGE_KEY, JSON.stringify(state.expenses));
-}
-
-function saveCashIns() {
-  localStorage.setItem(CASH_IN_STORAGE_KEY, JSON.stringify(state.cashIns));
-}
-
-function saveGroups() {
-  localStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify(state.groups));
-}
-
 function loadSettings() {
   const defaults = { currency: "USD" };
   const stored = localStorage.getItem(SETTINGS_KEY);
@@ -927,42 +1030,12 @@ function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
 }
 
-function createExpense(description, amount, category, date, time, notes) {
-  return {
-    id: createId("expense"),
-    description,
-    amount,
-    category,
-    date,
-    time,
-    notes,
-  };
-}
-
-function createCashIn(description, amount, category, date, time, notes) {
-  return {
-    id: createId("cash-in"),
-    description,
-    amount,
-    category,
-    date,
-    time,
-    notes,
-  };
-}
-
 function createId(prefix) {
   if (window.crypto && typeof window.crypto.randomUUID === "function") {
     return `${prefix}-${window.crypto.randomUUID()}`;
   }
 
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function daysAgo(days) {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return toDateInputValue(date);
 }
 
 function getCurrentWeek() {
@@ -1020,13 +1093,6 @@ function addDays(date, days) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
-}
-
-function toDateInputValue(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function setCurrentISTDateTime() {
@@ -1119,12 +1185,4 @@ function refreshIcons() {
   if (window.lucide) {
     window.lucide.createIcons();
   }
-}
-
-async function sha256(value) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }

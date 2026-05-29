@@ -13,28 +13,33 @@ A clean, dependency-free personal expense tracker built for GitHub Pages.
 - Filter by week, group, or search text.
 - View weekly spend, weekly cash in, running balance, and active groups.
 - Track six-week spending trends and daily expense breakdowns grouped by date.
-- Password-gated login screen for client-side access control.
-- Save data locally in the browser with `localStorage`.
+- Email/password login with Supabase Auth.
+- Save project groups and transactions in a centralized Supabase database.
 - Export expenses, cash-in entries, groups, and settings as JSON.
 
 ## Login
 
-Default password:
-
-`faststack@2026`
-
-This is client-side protection for a static GitHub Pages app. To change it, update `APP_PASSWORD_HASH` in `app.js` with a SHA-256 hash of the new password.
+Login uses Supabase Auth. Create authorized users in the Supabase project, then sign in with their email and password.
 
 ## Data Storage
 
-Application data is stored in the browser's `localStorage` on the user's device:
+Application data is stored in Supabase Postgres:
 
-- `faststack-sheet-expenses-v1`
-- `faststack-sheet-cash-in-v1`
-- `faststack-sheet-groups-v1`
-- `faststack-sheet-settings-v1`
+- `groups`
+- `transactions`
 
-The app does not currently store expense data in GitHub, Google Sheets, or a database.
+The database schema and row-level security policies are in `supabase-schema.sql`. Run that SQL in the Supabase SQL editor before using the app.
+
+Configure the browser-safe Supabase project values in `config.js`:
+
+```js
+window.FASTSTACK_SUPABASE = {
+  url: "https://YOUR_PROJECT.supabase.co",
+  anonKey: "YOUR_SUPABASE_ANON_KEY",
+};
+```
+
+The app no longer relies on browser-only storage for expenses, cash-in records, groups, or balances.
 
 ## GitHub Pages
 

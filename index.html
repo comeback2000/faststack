@@ -13,7 +13,24 @@
     <script defer src="app.js"></script>
   </head>
   <body>
-    <main class="app-shell">
+    <section class="login-screen" id="loginScreen" aria-label="Login">
+      <form class="login-panel" id="loginForm">
+        <div class="login-mark"><i data-lucide="lock-keyhole" aria-hidden="true"></i></div>
+        <p class="eyebrow">Protected Access</p>
+        <h1>FastStack Expense Tracker</h1>
+        <label class="field">
+          <span>Password</span>
+          <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Enter password" required>
+        </label>
+        <button class="primary-button" type="submit">
+          <i data-lucide="log-in" aria-hidden="true"></i>
+          Unlock Dashboard
+        </button>
+        <p class="form-message" id="loginMessage" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <main class="app-shell hidden" id="appShell">
       <section class="topbar" aria-label="Expense overview">
         <div>
           <p class="eyebrow">Personal Expense Tracker</p>
@@ -32,6 +49,10 @@
           <button class="ghost-button" id="exportButton" type="button">
             <i data-lucide="download" aria-hidden="true"></i>
             Export
+          </button>
+          <button class="ghost-button" id="logoutButton" type="button">
+            <i data-lucide="log-out" aria-hidden="true"></i>
+            Logout
           </button>
         </div>
       </section>
@@ -122,6 +143,7 @@
               <i data-lucide="plus" aria-hidden="true"></i>
               Add Expense
             </button>
+            <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
           </form>
         </aside>
 

@@ -2,7 +2,9 @@ const EXPENSE_STORAGE_KEY = "faststack-expenses-v1";
 const CASH_IN_STORAGE_KEY = "faststack-cash-in-v1";
 const GROUP_STORAGE_KEY = "faststack-groups-v1";
 const SETTINGS_KEY = "faststack-settings-v1";
+const AUTH_STORAGE_KEY = "faststack-authenticated-v1";
 const CUSTOM_GROUP_VALUE = "__custom_group__";
+const APP_PASSWORD_HASH = "0b92dc7e21beb26e28f120e2e198b996cb45b869728be048b5bc7737a552fe01";
 
 const defaultGroups = [
   { name: "Tour Expenses", color: "#0f766e" },
@@ -48,6 +50,7 @@ const state = {
   groups: [],
   settings: loadSettings(),
   mode: "expense",
+  dashboardBooted: false,
   filters: {
     search: "",
     week: getCurrentWeek(),
@@ -58,8 +61,14 @@ const state = {
 state.groups = loadGroups();
 
 const elements = {
+  appShell: document.querySelector("#appShell"),
+  loginScreen: document.querySelector("#loginScreen"),
+  loginForm: document.querySelector("#loginForm"),
+  passwordInput: document.querySelector("#passwordInput"),
+  loginMessage: document.querySelector("#loginMessage"),
   currencySelect: document.querySelector("#currencySelect"),
   exportButton: document.querySelector("#exportButton"),
+  logoutButton: document.querySelector("#logoutButton"),
   form: document.querySelector("#expenseForm"),
   expenseId: document.querySelector("#expenseId"),
   descriptionInput: document.querySelector("#descriptionInput"),
@@ -73,6 +82,7 @@ const elements = {
   notesInput: document.querySelector("#notesInput"),
   formTitle: document.querySelector("#formTitle"),
   submitButton: document.querySelector("#submitButton"),
+  formMessage: document.querySelector("#formMessage"),
   cancelEditButton: document.querySelector("#cancelEditButton"),
   expenseModeButton: document.querySelector("#expenseModeButton"),
   cashInModeButton: document.querySelector("#cashInModeButton"),
@@ -96,13 +106,38 @@ const elements = {
 initialize();
 
 function initialize() {
+  bindAuthEvents();
+  setAuthenticated(isAuthenticated());
+  if (!isAuthenticated()) {
+    refreshIcons();
+    return;
+  }
+
+  bootDashboard();
+}
+
+function bootDashboard() {
   populateGroupControls();
   elements.currencySelect.value = state.settings.currency;
   elements.weekFilter.value = state.filters.week;
   elements.dateInput.valueAsDate = new Date();
-  bindEvents();
+  if (!state.dashboardBooted) {
+    bindEvents();
+    state.dashboardBooted = true;
+  }
   setMode("expense");
   render();
+}
+
+function bindAuthEvents() {
+  elements.loginForm.addEventListener("submit", handleLogin);
+  elements.logoutButton.addEventListener("click", () => {
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    setAuthenticated(false);
+    elements.passwordInput.value = "";
+    elements.loginMessage.textContent = "";
+    elements.passwordInput.focus();
+  });
 }
 
 function bindEvents() {
@@ -134,6 +169,33 @@ function bindEvents() {
   });
   elements.expenseTable.addEventListener("click", handleExpenseTableClick);
   elements.cashInTable.addEventListener("click", handleCashInTableClick);
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  const password = elements.passwordInput.value;
+  const passwordHash = await sha256(password);
+
+  if (passwordHash !== APP_PASSWORD_HASH) {
+    elements.loginMessage.textContent = "Incorrect password.";
+    elements.loginMessage.classList.add("error");
+    return;
+  }
+
+  sessionStorage.setItem(AUTH_STORAGE_KEY, "true");
+  elements.loginMessage.textContent = "";
+  elements.loginMessage.classList.remove("error");
+  setAuthenticated(true);
+  bootDashboard();
+}
+
+function setAuthenticated(authenticated) {
+  elements.loginScreen.classList.toggle("hidden", authenticated);
+  elements.appShell.classList.toggle("hidden", !authenticated);
+}
+
+function isAuthenticated() {
+  return sessionStorage.getItem(AUTH_STORAGE_KEY) === "true";
 }
 
 function setMode(mode) {
@@ -181,8 +243,9 @@ function handleSubmit(event) {
   event.preventDefault();
 
   const group = resolveSelectedGroup();
+  const currentMode = state.mode;
   const transaction = {
-    id: elements.expenseId.value || createId(state.mode === "cash-in" ? "cash-in" : "expense"),
+    id: elements.expenseId.value || createId(currentMode === "cash-in" ? "cash-in" : "expense"),
     description: elements.descriptionInput.value.trim(),
     amount: Number(elements.amountInput.value),
     date: elements.dateInput.value,
@@ -191,10 +254,11 @@ function handleSubmit(event) {
   };
 
   if (!transaction.description || !transaction.date || !transaction.category || transaction.amount <= 0) {
+    showFormMessage("Please complete the required fields.", true);
     return;
   }
 
-  if (state.mode === "cash-in") {
+  if (currentMode === "cash-in") {
     upsertTransaction(state.cashIns, transaction);
     saveCashIns();
   } else {
@@ -202,7 +266,14 @@ function handleSubmit(event) {
     saveExpenses();
   }
 
+  state.filters.week = getWeekValue(new Date(`${transaction.date}T00:00:00`));
+  state.filters.group = "All";
+  elements.weekFilter.value = state.filters.week;
+  elements.categoryFilter.value = state.filters.group;
+
   resetForm();
+  setMode(currentMode);
+  showFormMessage(currentMode === "cash-in" ? "Cash In added and allocated." : "Expense added.");
   render();
 }
 
@@ -297,8 +368,15 @@ function resetForm() {
   elements.dateInput.valueAsDate = new Date();
   elements.customGroupField.classList.add("hidden");
   elements.customGroupInput.required = false;
+  elements.formMessage.textContent = "";
+  elements.formMessage.classList.remove("error");
   populateGroupControls();
   setMode(state.mode);
+}
+
+function showFormMessage(message, isError = false) {
+  elements.formMessage.textContent = message;
+  elements.formMessage.classList.toggle("error", isError);
 }
 
 function render() {
@@ -862,4 +940,12 @@ function refreshIcons() {
   if (window.lucide) {
     window.lucide.createIcons();
   }
+}
+
+async function sha256(value) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }

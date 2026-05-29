@@ -265,7 +265,7 @@ button {
 }
 
 .form-grid {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
 }
 
 .field {
@@ -499,6 +499,144 @@ button {
   gap: 12px;
 }
 
+.sheet-meta {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, minmax(120px, 0.75fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.sheet-meta div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.sheet-meta span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.sheet-meta strong {
+  font-size: 1.1rem;
+}
+
+.sheet-wrap {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.sheet-table {
+  min-width: 720px;
+}
+
+.sheet-table th {
+  background: #f8fafc;
+  color: var(--ink);
+  font-size: 0.82rem;
+  text-transform: none;
+}
+
+.sheet-table td {
+  padding: 9px 10px;
+}
+
+.cash-in-value,
+.balance-positive {
+  color: #15803d;
+  font-weight: 800;
+}
+
+.cash-out-value,
+.balance-negative {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.des-button {
+  display: inline-flex;
+  max-width: 240px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+.des-button:hover {
+  color: var(--accent-strong);
+  text-decoration-color: var(--accent-strong);
+}
+
+.des-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 20px;
+}
+
+.detail-modal {
+  width: min(680px, 100%);
+  max-height: min(720px, 92vh);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.detail-grid div {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.detail-grid dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.detail-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.detail-wide {
+  grid-column: 1 / -1;
+}
+
 .day-group {
   display: grid;
   gap: 10px;
@@ -652,7 +790,8 @@ td {
   .summary-grid,
   .workspace,
   .analytics-grid,
-  .daily-breakdown {
+  .daily-breakdown,
+  .sheet-meta {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -676,6 +815,8 @@ td {
   .workspace,
   .analytics-grid,
   .daily-breakdown,
+  .sheet-meta,
+  .detail-grid,
   .transaction-heading,
   .toolbar,
   .filters,

@@ -8,6 +8,8 @@ A clean, dependency-free personal expense tracker built for GitHub Pages.
 - Add Cash In entries and allocate funds to budget groups.
 - Use default groups such as Tour Expenses, Petty Cash, Office Expenses, Project Expenses, and Other, or create custom groups while entering transactions.
 - Track allocated funds, actual spending, and remaining balances for each group.
+- View a group-wise balance sheet with Project-name, Date/Time, Cash-in, Cash-Out, Balance, and Des columns.
+- Open a Des popup to view full transaction details and notes.
 - Filter by week, group, or search text.
 - View weekly spend, weekly cash in, running balance, and active groups.
 - Track six-week spending trends and daily expense breakdowns grouped by date.

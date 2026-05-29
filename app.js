@@ -27,21 +27,21 @@ const colorPool = [
 ];
 
 const sampleCashIns = [
-  createCashIn("Opening petty cash", 800, "Petty Cash", daysAgo(1), "Weekly float"),
-  createCashIn("Tour advance", 1500, "Tour Expenses", daysAgo(3), "North route travel"),
-  createCashIn("Client project allocation", 2200, "Project Expenses", daysAgo(9), "Phase one budget"),
-  createCashIn("Office operating fund", 950, "Office Expenses", daysAgo(15), ""),
+  createCashIn("Opening petty cash", 800, "Petty Cash", daysAgo(1), "10:30", "Weekly float"),
+  createCashIn("Tour advance", 1500, "Tour Expenses", daysAgo(3), "09:45", "North route travel"),
+  createCashIn("Client project allocation", 2200, "Project Expenses", daysAgo(9), "11:15", "Phase one budget"),
+  createCashIn("Office operating fund", 950, "Office Expenses", daysAgo(15), "14:10", ""),
 ];
 
 const sampleExpenses = [
-  createExpense("Team lunch during tour", 126.4, "Tour Expenses", daysAgo(1), "Field visit"),
-  createExpense("Fuel and tolls", 210, "Tour Expenses", daysAgo(2), "Route expenses"),
-  createExpense("Courier charges", 38.5, "Petty Cash", daysAgo(3), ""),
-  createExpense("Printer paper", 64.99, "Office Expenses", daysAgo(4), ""),
-  createExpense("Prototype materials", 420, "Project Expenses", daysAgo(5), "Phase one"),
-  createExpense("Tea and snacks", 28.25, "Petty Cash", daysAgo(8), ""),
-  createExpense("Software subscription", 132.5, "Project Expenses", daysAgo(12), ""),
-  createExpense("Office bulbs", 76, "Office Expenses", daysAgo(19), ""),
+  createExpense("Team lunch during tour", 126.4, "Tour Expenses", daysAgo(1), "13:05", "Field visit"),
+  createExpense("Fuel and tolls", 210, "Tour Expenses", daysAgo(2), "16:20", "Route expenses"),
+  createExpense("Courier charges", 38.5, "Petty Cash", daysAgo(3), "10:45", ""),
+  createExpense("Printer paper", 64.99, "Office Expenses", daysAgo(4), "12:30", ""),
+  createExpense("Prototype materials", 420, "Project Expenses", daysAgo(5), "15:00", "Phase one"),
+  createExpense("Tea and snacks", 28.25, "Petty Cash", daysAgo(8), "17:10", ""),
+  createExpense("Software subscription", 132.5, "Project Expenses", daysAgo(12), "09:20", ""),
+  createExpense("Office bulbs", 76, "Office Expenses", daysAgo(19), "18:00", ""),
 ];
 
 const state = {
@@ -75,6 +75,7 @@ const elements = {
   descriptionLabel: document.querySelector("#descriptionLabel"),
   amountInput: document.querySelector("#amountInput"),
   dateInput: document.querySelector("#dateInput"),
+  timeInput: document.querySelector("#timeInput"),
   categoryInput: document.querySelector("#categoryInput"),
   categoryLabel: document.querySelector("#categoryLabel"),
   customGroupField: document.querySelector("#customGroupField"),
@@ -93,6 +94,13 @@ const elements = {
   trendDelta: document.querySelector("#trendDelta"),
   trendChart: document.querySelector("#trendChart"),
   categoryBreakdown: document.querySelector("#categoryBreakdown"),
+  projectGroupSelect: document.querySelector("#projectGroupSelect"),
+  projectNameLabel: document.querySelector("#projectNameLabel"),
+  groupLedgerCashIn: document.querySelector("#groupLedgerCashIn"),
+  groupLedgerCashOut: document.querySelector("#groupLedgerCashOut"),
+  groupLedgerBalance: document.querySelector("#groupLedgerBalance"),
+  groupLedgerTable: document.querySelector("#groupLedgerTable"),
+  groupLedgerEmptyState: document.querySelector("#groupLedgerEmptyState"),
   dailyBreakdown: document.querySelector("#dailyBreakdown"),
   expenseTable: document.querySelector("#expenseTable"),
   cashInTable: document.querySelector("#cashInTable"),
@@ -101,6 +109,16 @@ const elements = {
   searchInput: document.querySelector("#searchInput"),
   weekFilter: document.querySelector("#weekFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
+  detailModal: document.querySelector("#detailModal"),
+  detailCloseButton: document.querySelector("#detailCloseButton"),
+  detailType: document.querySelector("#detailType"),
+  detailTitle: document.querySelector("#detailTitle"),
+  detailGroup: document.querySelector("#detailGroup"),
+  detailDateTime: document.querySelector("#detailDateTime"),
+  detailCashIn: document.querySelector("#detailCashIn"),
+  detailCashOut: document.querySelector("#detailCashOut"),
+  detailDescription: document.querySelector("#detailDescription"),
+  detailNotes: document.querySelector("#detailNotes"),
 };
 
 initialize();
@@ -121,6 +139,7 @@ function bootDashboard() {
   elements.currencySelect.value = state.settings.currency;
   elements.weekFilter.value = state.filters.week;
   elements.dateInput.valueAsDate = new Date();
+  elements.timeInput.value = getCurrentTime();
   if (!state.dashboardBooted) {
     bindEvents();
     state.dashboardBooted = true;
@@ -166,6 +185,19 @@ function bindEvents() {
     renderTransactions();
     renderCashIns();
     renderDailyBreakdown();
+  });
+  elements.projectGroupSelect.addEventListener("change", renderGroupLedger);
+  elements.groupLedgerTable.addEventListener("click", handleDetailClick);
+  elements.detailCloseButton.addEventListener("click", closeDetailModal);
+  elements.detailModal.addEventListener("click", (event) => {
+    if (event.target === elements.detailModal) {
+      closeDetailModal();
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !elements.detailModal.classList.contains("hidden")) {
+      closeDetailModal();
+    }
   });
   elements.expenseTable.addEventListener("click", handleExpenseTableClick);
   elements.cashInTable.addEventListener("click", handleCashInTableClick);
@@ -231,6 +263,14 @@ function populateGroupControls() {
     ...state.groups.map((group) => `<option value="${escapeAttribute(group.name)}">${escapeHtml(group.name)}</option>`),
   ].join("");
   elements.categoryFilter.value = state.filters.group;
+
+  const selectedGroup = elements.projectGroupSelect.value || getDefaultProjectGroup();
+  elements.projectGroupSelect.innerHTML = state.groups.map((group) => {
+    return `<option value="${escapeAttribute(group.name)}">${escapeHtml(group.name)}</option>`;
+  }).join("");
+  elements.projectGroupSelect.value = state.groups.some((group) => group.name === selectedGroup)
+    ? selectedGroup
+    : getDefaultProjectGroup();
 }
 
 function toggleCustomGroup() {
@@ -249,11 +289,12 @@ function handleSubmit(event) {
     description: elements.descriptionInput.value.trim(),
     amount: Number(elements.amountInput.value),
     date: elements.dateInput.value,
+    time: elements.timeInput.value,
     category: group,
     notes: elements.notesInput.value.trim(),
   };
 
-  if (!transaction.description || !transaction.date || !transaction.category || transaction.amount <= 0) {
+  if (!transaction.description || !transaction.date || !transaction.time || !transaction.category || transaction.amount <= 0) {
     showFormMessage("Please complete the required fields.", true);
     return;
   }
@@ -353,6 +394,7 @@ function editTransaction(transaction, mode) {
   elements.descriptionInput.value = transaction.description;
   elements.amountInput.value = transaction.amount;
   elements.dateInput.value = transaction.date;
+  elements.timeInput.value = transaction.time || getCurrentTime();
   elements.notesInput.value = transaction.notes || "";
   elements.formTitle.textContent = mode === "cash-in" ? "Edit Cash In" : "Edit Expense";
   elements.submitButton.innerHTML = `<i data-lucide="save" aria-hidden="true"></i> Save Changes`;
@@ -366,6 +408,7 @@ function resetForm() {
   elements.form.reset();
   elements.expenseId.value = "";
   elements.dateInput.valueAsDate = new Date();
+  elements.timeInput.value = getCurrentTime();
   elements.customGroupField.classList.add("hidden");
   elements.customGroupInput.required = false;
   elements.formMessage.textContent = "";
@@ -394,9 +437,59 @@ function render() {
 
   renderTrend();
   renderBudgets(groupSummaries);
+  renderGroupLedger();
   renderDailyBreakdown();
   renderTransactions();
   renderCashIns();
+  refreshIcons();
+}
+
+function renderGroupLedger() {
+  if (!state.groups.length) {
+    elements.projectNameLabel.textContent = "-";
+    elements.groupLedgerTable.innerHTML = "";
+    elements.groupLedgerEmptyState.classList.remove("hidden");
+    return;
+  }
+
+  if (!elements.projectGroupSelect.value) {
+    elements.projectGroupSelect.value = getDefaultProjectGroup();
+  }
+
+  const groupName = elements.projectGroupSelect.value;
+  const entries = getGroupLedgerEntries(groupName);
+  const totalIn = sum(entries.filter((entry) => entry.type === "cash-in"));
+  const totalOut = sum(entries.filter((entry) => entry.type === "expense"));
+  const balance = totalIn - totalOut;
+
+  elements.projectNameLabel.textContent = groupName;
+  elements.groupLedgerCashIn.textContent = formatCurrency(totalIn);
+  elements.groupLedgerCashOut.textContent = formatCurrency(totalOut);
+  elements.groupLedgerBalance.textContent = formatCurrency(balance);
+  elements.groupLedgerBalance.classList.toggle("balance-negative", balance < 0);
+  elements.groupLedgerBalance.classList.toggle("balance-positive", balance >= 0);
+
+  let runningBalance = 0;
+  elements.groupLedgerTable.innerHTML = entries.map((entry) => {
+    runningBalance += entry.type === "cash-in" ? entry.amount : -entry.amount;
+    const isCashIn = entry.type === "cash-in";
+    const balanceClass = runningBalance < 0 ? "balance-negative" : "balance-positive";
+    return `
+      <tr>
+        <td>${formatDateTime(entry.date, entry.time)}</td>
+        <td class="amount-col cash-in-value">${isCashIn ? formatCurrency(entry.amount) : ""}</td>
+        <td class="amount-col cash-out-value">${isCashIn ? "" : formatCurrency(entry.amount)}</td>
+        <td class="amount-col ${balanceClass}">${formatCurrency(runningBalance)}</td>
+        <td>
+          <button class="des-button" type="button" data-action="view-details" data-type="${entry.type}" data-id="${escapeAttribute(entry.id)}" title="View details">
+            <span class="des-text">${escapeHtml(entry.description)}</span>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  elements.groupLedgerEmptyState.classList.toggle("hidden", entries.length > 0);
   refreshIcons();
 }
 
@@ -527,6 +620,37 @@ function renderTransactions() {
   refreshIcons();
 }
 
+function handleDetailClick(event) {
+  const button = event.target.closest("button[data-action='view-details']");
+  if (!button) {
+    return;
+  }
+
+  const collection = button.dataset.type === "cash-in" ? state.cashIns : state.expenses;
+  const transaction = collection.find((entry) => entry.id === button.dataset.id);
+  if (transaction) {
+    openDetailModal(transaction, button.dataset.type);
+  }
+}
+
+function openDetailModal(transaction, type) {
+  const isCashIn = type === "cash-in";
+  elements.detailType.textContent = isCashIn ? "Cash In Details" : "Cash-Out Details";
+  elements.detailTitle.textContent = transaction.description;
+  elements.detailGroup.textContent = transaction.category;
+  elements.detailDateTime.textContent = formatDateTime(transaction.date, transaction.time);
+  elements.detailCashIn.textContent = isCashIn ? formatCurrency(transaction.amount) : "-";
+  elements.detailCashOut.textContent = isCashIn ? "-" : formatCurrency(transaction.amount);
+  elements.detailDescription.textContent = transaction.description;
+  elements.detailNotes.textContent = transaction.notes || "No additional notes.";
+  elements.detailModal.classList.remove("hidden");
+  elements.detailCloseButton.focus();
+}
+
+function closeDetailModal() {
+  elements.detailModal.classList.add("hidden");
+}
+
 function renderCashIns() {
   const filtered = getFilteredCashIns();
   elements.cashInTable.innerHTML = filtered.map((cashIn) => {
@@ -607,6 +731,25 @@ function getGroupSummaries() {
   });
 }
 
+function getGroupLedgerEntries(groupName) {
+  const cashInEntries = state.cashIns
+    .filter((cashIn) => cashIn.category === groupName)
+    .map((cashIn) => ({ ...cashIn, type: "cash-in" }));
+  const expenseEntries = state.expenses
+    .filter((expense) => expense.category === groupName)
+    .map((expense) => ({ ...expense, type: "expense" }));
+
+  return [...cashInEntries, ...expenseEntries].sort(sortLedgerAsc);
+}
+
+function getDefaultProjectGroup() {
+  const activeGroup = getGroupSummaries()
+    .filter((group) => group.allocated > 0 || group.spent > 0)
+    .sort((a, b) => b.allocated - a.allocated || b.spent - a.spent)[0];
+
+  return activeGroup ? activeGroup.name : state.groups[0]?.name || "";
+}
+
 function groupExpensesByDate(expenses) {
   const grouped = expenses.reduce((days, expense) => {
     if (!days[expense.date]) {
@@ -624,7 +767,15 @@ function sum(transactions) {
 }
 
 function sortByDateDesc(a, b) {
-  return new Date(`${b.date}T00:00:00`) - new Date(`${a.date}T00:00:00`);
+  return getTransactionDate(b) - getTransactionDate(a);
+}
+
+function sortLedgerAsc(a, b) {
+  return getTransactionDate(a) - getTransactionDate(b);
+}
+
+function getTransactionDate(transaction) {
+  return new Date(`${transaction.date}T${transaction.time || "00:00"}:00`);
 }
 
 function ensureGroup(name) {
@@ -731,6 +882,7 @@ function normalizeTransaction(transaction) {
     amount: Number(transaction.amount) || 0,
     category: transaction.category || transaction.group || "Other",
     date: transaction.date || toDateInputValue(new Date()),
+    time: transaction.time || "00:00",
     notes: transaction.notes || "",
   };
 }
@@ -791,24 +943,26 @@ function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
 }
 
-function createExpense(description, amount, category, date, notes) {
+function createExpense(description, amount, category, date, time, notes) {
   return {
     id: createId("expense"),
     description,
     amount,
     category,
     date,
+    time,
     notes,
   };
 }
 
-function createCashIn(description, amount, category, date, notes) {
+function createCashIn(description, amount, category, date, time, notes) {
   return {
     id: createId("cash-in"),
     description,
     amount,
     category,
     date,
+    time,
     notes,
   };
 }
@@ -891,6 +1045,13 @@ function toDateInputValue(date) {
   return `${year}-${month}-${day}`;
 }
 
+function getCurrentTime() {
+  const date = new Date();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
 function formatCurrency(value) {
   return new Intl.NumberFormat("en", {
     style: "currency",
@@ -914,6 +1075,18 @@ function formatDate(value) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(`${value}T00:00:00`));
+}
+
+function formatDateTime(dateValue, timeValue) {
+  const [hours = "00", minutes = "00"] = String(timeValue || "00:00").split(":");
+  const date = new Date(`${dateValue}T${hours}:${minutes}:00`);
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function formatShortDate(date) {

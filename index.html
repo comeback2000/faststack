@@ -126,6 +126,10 @@
                 <span>Date</span>
                 <input id="dateInput" name="date" type="date" required>
               </label>
+              <label class="field">
+                <span>Time</span>
+                <input id="timeInput" name="time" type="time" required>
+              </label>
             </div>
             <label class="field">
               <span id="categoryLabel">Expense Group</span>
@@ -170,6 +174,58 @@
               <div id="categoryBreakdown" class="category-list"></div>
             </article>
           </div>
+
+          <section class="panel group-sheet-panel" aria-label="Group balance sheet">
+            <div class="panel-heading transaction-heading">
+              <div>
+                <p class="eyebrow">Group Sheet</p>
+                <h2>Balance by Group</h2>
+              </div>
+              <label class="field compact">
+                <span>Project Name</span>
+                <select id="projectGroupSelect" aria-label="Project Name"></select>
+              </label>
+            </div>
+
+            <div class="sheet-meta">
+              <div>
+                <span>Project-name</span>
+                <strong id="projectNameLabel">-</strong>
+              </div>
+              <div>
+                <span>Cash-in</span>
+                <strong id="groupLedgerCashIn">$0</strong>
+              </div>
+              <div>
+                <span>Cash-Out</span>
+                <strong id="groupLedgerCashOut">$0</strong>
+              </div>
+              <div>
+                <span>Balance</span>
+                <strong id="groupLedgerBalance">$0</strong>
+              </div>
+            </div>
+
+            <div class="table-wrap sheet-wrap">
+              <table class="sheet-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Date/Time</th>
+                    <th scope="col" class="amount-col">Cash-in</th>
+                    <th scope="col" class="amount-col">Cash-Out</th>
+                    <th scope="col" class="amount-col">Balance</th>
+                    <th scope="col">Des</th>
+                  </tr>
+                </thead>
+                <tbody id="groupLedgerTable"></tbody>
+              </table>
+              <div id="groupLedgerEmptyState" class="empty-state hidden">
+                <i data-lucide="table-2" aria-hidden="true"></i>
+                <strong>No entries for this group</strong>
+                <span>Add Cash In or Expense entries for the selected project.</span>
+              </div>
+            </div>
+          </section>
 
           <section class="panel daily-panel" aria-label="Daily expense breakdown">
             <div class="panel-heading">
@@ -253,5 +309,45 @@
         </section>
       </section>
     </main>
+
+    <div class="modal-backdrop hidden" id="detailModal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <section class="detail-modal">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow" id="detailType">Details</p>
+            <h2 id="detailTitle">Transaction Details</h2>
+          </div>
+          <button class="icon-button" id="detailCloseButton" type="button" aria-label="Close details" title="Close">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <dl class="detail-grid">
+          <div>
+            <dt>Project Name</dt>
+            <dd id="detailGroup">-</dd>
+          </div>
+          <div>
+            <dt>Date/Time</dt>
+            <dd id="detailDateTime">-</dd>
+          </div>
+          <div>
+            <dt>Cash-in</dt>
+            <dd id="detailCashIn">-</dd>
+          </div>
+          <div>
+            <dt>Cash-Out</dt>
+            <dd id="detailCashOut">-</dd>
+          </div>
+          <div class="detail-wide">
+            <dt>Des</dt>
+            <dd id="detailDescription">-</dd>
+          </div>
+          <div class="detail-wide">
+            <dt>Notes</dt>
+            <dd id="detailNotes">-</dd>
+          </div>
+        </dl>
+      </section>
+    </div>
   </body>
 </html>

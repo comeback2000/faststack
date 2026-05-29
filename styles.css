@@ -114,6 +114,15 @@ button {
   letter-spacing: 0;
 }
 
+.auth-form {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-switch {
+  margin-bottom: 0;
+}
+
 .login-mark {
   display: grid;
   width: 48px;
@@ -347,6 +356,19 @@ button {
 
 .primary-button:hover {
   background: var(--accent-strong);
+}
+
+.text-button {
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font-weight: 800;
+  text-align: center;
+}
+
+.text-button:hover {
+  text-decoration: underline;
 }
 
 .ghost-button {

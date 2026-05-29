@@ -11,6 +11,9 @@
 
 const FASTSTACK_TIME_ZONE = "Asia/Kolkata";
 const FASTSTACK_SESSION_DAYS = 7;
+const FASTSTACK_VERIFICATION_MINUTES = 30;
+const FASTSTACK_RESET_MINUTES = 20;
+const FASTSTACK_FRONTEND_URL = "https://comeback2000.github.io/faststack/";
 const FASTSTACK_PROPERTIES = {
   SPREADSHEET_ID: "FASTSTACK_SPREADSHEET_ID",
   APP_SECRET: "FASTSTACK_APP_SECRET",
@@ -19,7 +22,7 @@ const FASTSTACK_PROPERTIES = {
 const FASTSTACK_SHEETS = {
   USERS: {
     name: "Users",
-    headers: ["userId", "email", "passwordSalt", "passwordHash", "role", "status", "createdAt", "updatedAt", "lastLoginAt"],
+    headers: ["userId", "email", "passwordSalt", "passwordHash", "role", "status", "createdAt", "updatedAt", "lastLoginAt", "verifiedAt", "verificationCodeHash", "verificationExpiresAt", "resetCodeHash", "resetExpiresAt"],
   },
   SESSIONS: {
     name: "Sessions",
@@ -64,17 +67,18 @@ function setupFastStackBackend() {
   Object.keys(FASTSTACK_SHEETS).forEach(function (key) {
     ensureSheet_(spreadsheet, FASTSTACK_SHEETS[key]);
   });
+  migrateUsersSheet_(spreadsheet.getSheetByName(FASTSTACK_SHEETS.USERS.name));
 
   return {
     spreadsheetId: spreadsheetId,
     spreadsheetUrl: spreadsheet.getUrl(),
-    nextStep: "Run createUser('you@example.com', 'StrongPasswordHere', 'admin'), then deploy this project as a Web App.",
+    nextStep: "Deploy this project as a Web App, then use the app sign-up screen with a gmail.com address.",
   };
 }
 
 function createUser(email, password, role) {
   setupFastStackBackend();
-  const userEmail = validateEmail_(email);
+  const userEmail = validateGmailEmail_(email);
   const userPassword = validatePassword_(password);
   const userRole = role === "admin" ? "admin" : "user";
   const now = nowIso_();
@@ -99,6 +103,11 @@ function createUser(email, password, role) {
       createdAt: now,
       updatedAt: now,
       lastLoginAt: "",
+      verifiedAt: now,
+      verificationCodeHash: "",
+      verificationExpiresAt: "",
+      resetCodeHash: "",
+      resetExpiresAt: "",
     });
     return "User created: " + userEmail;
   } finally {
@@ -108,7 +117,7 @@ function createUser(email, password, role) {
 
 function resetUserPassword(email, newPassword) {
   setupFastStackBackend();
-  const userEmail = validateEmail_(email);
+  const userEmail = validateGmailEmail_(email);
   const userPassword = validatePassword_(newPassword);
   const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
   const data = usersSheet.getDataRange().getValues();
@@ -148,6 +157,16 @@ function doPost(event) {
 
     if (action === "login") {
       data = login_(request);
+    } else if (action === "register") {
+      data = register_(request);
+    } else if (action === "verifyEmail") {
+      data = verifyEmail_(request);
+    } else if (action === "resendVerification") {
+      data = resendVerification_(request);
+    } else if (action === "requestPasswordReset") {
+      data = requestPasswordReset_(request);
+    } else if (action === "resetPassword") {
+      data = resetPassword_(request);
     } else if (action === "logout") {
       data = logout_(request);
     } else {
@@ -171,19 +190,190 @@ function doPost(event) {
   }
 }
 
+function register_(request) {
+  const email = validateGmailEmail_(request.email);
+  const password = validatePassword_(request.password);
+  rateLimitAction_("register", email, 5, 3600);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
+    const data = usersSheet.getDataRange().getValues();
+    const map = headerMap_(data[0]);
+    const now = nowIso_();
+    const code = createCode_();
+    const expiresAt = minutesFromNowIso_(FASTSTACK_VERIFICATION_MINUTES);
+
+    for (let row = 1; row < data.length; row += 1) {
+      if (String(data[row][map.email]).toLowerCase() === email) {
+        if (data[row][map.status] === "active" && data[row][map.verifiedAt]) {
+          throw new Error("An account already exists for this email.");
+        }
+
+        const salt = Utilities.getUuid();
+        usersSheet.getRange(row + 1, map.passwordSalt + 1).setValue(salt);
+        usersSheet.getRange(row + 1, map.passwordHash + 1).setValue(hashPassword_(password, salt));
+        usersSheet.getRange(row + 1, map.status + 1).setValue("pending");
+        usersSheet.getRange(row + 1, map.updatedAt + 1).setValue(now);
+        usersSheet.getRange(row + 1, map.verificationCodeHash + 1).setValue(hashCode_(email, code));
+        usersSheet.getRange(row + 1, map.verificationExpiresAt + 1).setValue(expiresAt);
+        sendVerificationEmail_(email, code);
+        return { message: "Verification code sent to your Gmail address." };
+      }
+    }
+
+    const salt = Utilities.getUuid();
+    appendObject_(usersSheet, FASTSTACK_SHEETS.USERS.headers, {
+      userId: "user-" + Utilities.getUuid(),
+      email: email,
+      passwordSalt: salt,
+      passwordHash: hashPassword_(password, salt),
+      role: "user",
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: "",
+      verifiedAt: "",
+      verificationCodeHash: hashCode_(email, code),
+      verificationExpiresAt: expiresAt,
+      resetCodeHash: "",
+      resetExpiresAt: "",
+    });
+    sendVerificationEmail_(email, code);
+    return { message: "Verification code sent to your Gmail address." };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function verifyEmail_(request) {
+  const email = validateGmailEmail_(request.email);
+  const code = validateCode_(request.code);
+  const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
+  const data = usersSheet.getDataRange().getValues();
+  const map = headerMap_(data[0]);
+  const now = nowIso_();
+
+  for (let row = 1; row < data.length; row += 1) {
+    if (String(data[row][map.email]).toLowerCase() === email) {
+      if (data[row][map.status] === "active" && data[row][map.verifiedAt]) {
+        return { message: "Email is already verified. You can log in now." };
+      }
+      if (new Date(data[row][map.verificationExpiresAt]) < new Date()) {
+        throw new Error("Verification code expired. Request a new code.");
+      }
+      if (data[row][map.verificationCodeHash] !== hashCode_(email, code)) {
+        throw new Error("Invalid verification code.");
+      }
+
+      usersSheet.getRange(row + 1, map.status + 1).setValue("active");
+      usersSheet.getRange(row + 1, map.verifiedAt + 1).setValue(now);
+      usersSheet.getRange(row + 1, map.updatedAt + 1).setValue(now);
+      usersSheet.getRange(row + 1, map.verificationCodeHash + 1).setValue("");
+      usersSheet.getRange(row + 1, map.verificationExpiresAt + 1).setValue("");
+      logHistory_({ userId: data[row][map.userId], email: email }, "verifyEmail", "user", data[row][map.userId], "");
+      return { message: "Email verified. You can log in now." };
+    }
+  }
+
+  throw new Error("Account not found.");
+}
+
+function resendVerification_(request) {
+  const email = validateGmailEmail_(request.email);
+  rateLimitAction_("verify", email, 5, 3600);
+  const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
+  const data = usersSheet.getDataRange().getValues();
+  const map = headerMap_(data[0]);
+  const code = createCode_();
+
+  for (let row = 1; row < data.length; row += 1) {
+    if (String(data[row][map.email]).toLowerCase() === email) {
+      if (data[row][map.status] === "active" && data[row][map.verifiedAt]) {
+        return { message: "Email is already verified. You can log in now." };
+      }
+      usersSheet.getRange(row + 1, map.verificationCodeHash + 1).setValue(hashCode_(email, code));
+      usersSheet.getRange(row + 1, map.verificationExpiresAt + 1).setValue(minutesFromNowIso_(FASTSTACK_VERIFICATION_MINUTES));
+      usersSheet.getRange(row + 1, map.updatedAt + 1).setValue(nowIso_());
+      sendVerificationEmail_(email, code);
+      return { message: "New verification code sent." };
+    }
+  }
+
+  throw new Error("Account not found.");
+}
+
+function requestPasswordReset_(request) {
+  const email = validateGmailEmail_(request.email);
+  rateLimitAction_("reset", email, 5, 3600);
+  const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
+  const data = usersSheet.getDataRange().getValues();
+  const map = headerMap_(data[0]);
+  const code = createCode_();
+
+  for (let row = 1; row < data.length; row += 1) {
+    if (String(data[row][map.email]).toLowerCase() === email && data[row][map.status] === "active") {
+      usersSheet.getRange(row + 1, map.resetCodeHash + 1).setValue(hashCode_(email, code));
+      usersSheet.getRange(row + 1, map.resetExpiresAt + 1).setValue(minutesFromNowIso_(FASTSTACK_RESET_MINUTES));
+      usersSheet.getRange(row + 1, map.updatedAt + 1).setValue(nowIso_());
+      sendPasswordResetEmail_(email, code);
+      return { message: "Password reset code sent to your Gmail address." };
+    }
+  }
+
+  return { message: "If an active account exists, a password reset code has been sent." };
+}
+
+function resetPassword_(request) {
+  const email = validateGmailEmail_(request.email);
+  const code = validateCode_(request.code);
+  const password = validatePassword_(request.password);
+  const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
+  const data = usersSheet.getDataRange().getValues();
+  const map = headerMap_(data[0]);
+  const now = nowIso_();
+
+  for (let row = 1; row < data.length; row += 1) {
+    if (String(data[row][map.email]).toLowerCase() === email && data[row][map.status] === "active") {
+      if (new Date(data[row][map.resetExpiresAt]) < new Date()) {
+        throw new Error("Password reset code expired. Request a new code.");
+      }
+      if (data[row][map.resetCodeHash] !== hashCode_(email, code)) {
+        throw new Error("Invalid password reset code.");
+      }
+
+      const salt = Utilities.getUuid();
+      usersSheet.getRange(row + 1, map.passwordSalt + 1).setValue(salt);
+      usersSheet.getRange(row + 1, map.passwordHash + 1).setValue(hashPassword_(password, salt));
+      usersSheet.getRange(row + 1, map.resetCodeHash + 1).setValue("");
+      usersSheet.getRange(row + 1, map.resetExpiresAt + 1).setValue("");
+      usersSheet.getRange(row + 1, map.updatedAt + 1).setValue(now);
+      revokeSessionsForUser_(data[row][map.userId]);
+      logHistory_({ userId: data[row][map.userId], email: email }, "resetPassword", "user", data[row][map.userId], "");
+      return { message: "Password updated. Please log in with your new password." };
+    }
+  }
+
+  throw new Error("Account not found.");
+}
+
 function login_(request) {
-  const email = validateEmail_(request.email);
+  const email = validateGmailEmail_(request.email);
   const password = validatePassword_(request.password);
   rateLimitLogin_(email);
 
   const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
   const users = readObjects_(usersSheet);
   const user = users.find(function (item) {
-    return String(item.email).toLowerCase() === email && item.status === "active";
+    return String(item.email).toLowerCase() === email;
   });
 
   if (!user || user.passwordHash !== hashPassword_(password, user.passwordSalt)) {
     throw new Error("Invalid email or password.");
+  }
+  if (user.status !== "active" || !user.verifiedAt) {
+    throw new Error("Please verify your Gmail address before logging in.");
   }
 
   CacheService.getScriptCache().remove("login:" + sha256Hex_(email));
@@ -491,10 +681,26 @@ function validateEmail_(email) {
   return value;
 }
 
+function validateGmailEmail_(email) {
+  const value = validateEmail_(email);
+  if (!value.endsWith("@gmail.com")) {
+    throw new Error("Only gmail.com email addresses are allowed.");
+  }
+  return value;
+}
+
 function validatePassword_(password) {
   const value = String(password || "");
   if (value.length < 8 || value.length > 128) {
     throw new Error("Password must be 8 to 128 characters.");
+  }
+  return value;
+}
+
+function validateCode_(code) {
+  const value = String(code || "").trim();
+  if (!/^\d{6}$/.test(value)) {
+    throw new Error("Enter the 6-digit code.");
   }
   return value;
 }
@@ -585,20 +791,40 @@ function ensureSheet_(spreadsheet, definition) {
     sheet = spreadsheet.insertSheet(definition.name);
   }
 
-  const existingHeaders = sheet.getLastColumn() > 0
-    ? sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), definition.headers.length)).getValues()[0]
-    : [];
-  const hasHeaders = definition.headers.every(function (header, index) {
-    return existingHeaders[index] === header;
-  });
-
-  if (!hasHeaders) {
-    sheet.clear();
+  if (sheet.getLastRow() === 0 || sheet.getLastColumn() === 0) {
     sheet.getRange(1, 1, 1, definition.headers.length).setValues([definition.headers]);
     sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, Math.max(sheet.getMaxRows(), 1), definition.headers.length).setNumberFormat("@");
+    return;
   }
 
-  sheet.getRange(1, 1, Math.max(sheet.getMaxRows(), 1), definition.headers.length).setNumberFormat("@");
+  const existingHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0]
+    .filter(function (header) { return header !== ""; });
+  const missingHeaders = definition.headers.filter(function (header) {
+    return existingHeaders.indexOf(header) === -1;
+  });
+
+  if (missingHeaders.length) {
+    sheet.getRange(1, existingHeaders.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
+  }
+
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, Math.max(sheet.getMaxRows(), 1), Math.max(sheet.getLastColumn(), definition.headers.length)).setNumberFormat("@");
+}
+
+function migrateUsersSheet_(sheet) {
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) {
+    return;
+  }
+
+  const map = headerMap_(data[0]);
+  const now = nowIso_();
+  for (let row = 1; row < data.length; row += 1) {
+    if (data[row][map.status] === "active" && !data[row][map.verifiedAt]) {
+      sheet.getRange(row + 1, map.verifiedAt + 1).setValue(data[row][map.createdAt] || now);
+    }
+  }
 }
 
 function getSheet_(name) {
@@ -665,6 +891,22 @@ function updateUserLastLogin_(userId, timestamp) {
   }
 }
 
+function revokeSessionsForUser_(userId) {
+  const sessionsSheet = getSheet_(FASTSTACK_SHEETS.SESSIONS.name);
+  const data = sessionsSheet.getDataRange().getValues();
+  if (data.length <= 1) {
+    return;
+  }
+
+  const map = headerMap_(data[0]);
+  const now = nowIso_();
+  for (let row = 1; row < data.length; row += 1) {
+    if (data[row][map.userId] === userId && !data[row][map.revokedAt]) {
+      sessionsSheet.getRange(row + 1, map.revokedAt + 1).setValue(now);
+    }
+  }
+}
+
 function getRoleForUser_(userId) {
   const user = readObjects_(getSheet_(FASTSTACK_SHEETS.USERS.name)).find(function (row) {
     return row.userId === userId;
@@ -692,6 +934,59 @@ function rateLimitLogin_(email) {
     throw new Error("Too many login attempts. Please try again later.");
   }
   cache.put(key, String(attempts + 1), 900);
+}
+
+function rateLimitAction_(prefix, email, limit, ttlSeconds) {
+  const cache = CacheService.getScriptCache();
+  const key = prefix + ":" + sha256Hex_(email);
+  const attempts = Number(cache.get(key) || "0");
+  if (attempts >= limit) {
+    throw new Error("Too many requests. Please try again later.");
+  }
+  cache.put(key, String(attempts + 1), ttlSeconds);
+}
+
+function createCode_() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function hashCode_(email, code) {
+  const secret = PropertiesService.getScriptProperties().getProperty(FASTSTACK_PROPERTIES.APP_SECRET);
+  return sha256Hex_(email + ":" + code + ":" + secret);
+}
+
+function minutesFromNowIso_(minutes) {
+  return new Date(Date.now() + minutes * 60 * 1000).toISOString();
+}
+
+function sendVerificationEmail_(email, code) {
+  const subject = "Verify your FastStack Expense Tracker account";
+  const body = [
+    "Your FastStack verification code is: " + code,
+    "",
+    "This code expires in " + FASTSTACK_VERIFICATION_MINUTES + " minutes.",
+    "",
+    "Open the app and enter this code:",
+    FASTSTACK_FRONTEND_URL,
+    "",
+    "If you did not request this account, ignore this email.",
+  ].join("\n");
+  MailApp.sendEmail(email, subject, body);
+}
+
+function sendPasswordResetEmail_(email, code) {
+  const subject = "Reset your FastStack Expense Tracker password";
+  const body = [
+    "Your FastStack password reset code is: " + code,
+    "",
+    "This code expires in " + FASTSTACK_RESET_MINUTES + " minutes.",
+    "",
+    "Open the app and enter this code to set a new password:",
+    FASTSTACK_FRONTEND_URL,
+    "",
+    "If you did not request a password reset, ignore this email.",
+  ].join("\n");
+  MailApp.sendEmail(email, subject, body);
 }
 
 function hashPassword_(password, salt) {

@@ -14,25 +14,101 @@
     <script defer src="app.js?v=google-sheets-1"></script>
   </head>
   <body>
-    <section class="login-screen" id="loginScreen" aria-label="Login">
-      <form class="login-panel" id="loginForm">
+    <section class="login-screen" id="loginScreen" aria-label="Account access">
+      <div class="login-panel">
         <div class="login-mark"><i data-lucide="lock-keyhole" aria-hidden="true"></i></div>
         <p class="eyebrow">Protected Access</p>
         <h1>FastStack Expense Tracker</h1>
-        <label class="field">
-          <span>Email</span>
-          <input id="emailInput" type="email" autocomplete="username" placeholder="you@example.com" required>
-        </label>
-        <label class="field">
-          <span>Password</span>
-          <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Enter password" required>
-        </label>
-        <button class="primary-button" type="submit">
-          <i data-lucide="log-in" aria-hidden="true"></i>
-          Unlock Dashboard
-        </button>
+
+        <div class="segmented-control auth-switch" role="tablist" aria-label="Account actions">
+          <button id="loginTabButton" class="active" type="button" data-auth-view="login" role="tab" aria-selected="true">Login</button>
+          <button id="signupTabButton" type="button" data-auth-view="signup" role="tab" aria-selected="false">Sign Up</button>
+        </div>
+
+        <form class="auth-form" id="loginForm" data-auth-panel="login">
+          <label class="field">
+            <span>Email</span>
+            <input id="emailInput" type="email" autocomplete="username" placeholder="you@gmail.com" required>
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Enter password" required>
+          </label>
+          <button class="primary-button" type="submit">
+            <i data-lucide="log-in" aria-hidden="true"></i>
+            Unlock Dashboard
+          </button>
+          <button class="text-button" id="forgotPasswordButton" type="button">Forgot password?</button>
+        </form>
+
+        <form class="auth-form hidden" id="signupForm" data-auth-panel="signup">
+          <label class="field">
+            <span>Gmail Address</span>
+            <input id="signupEmailInput" type="email" autocomplete="email" placeholder="you@gmail.com" required>
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <input id="signupPasswordInput" type="password" autocomplete="new-password" placeholder="Minimum 8 characters" required minlength="8">
+          </label>
+          <label class="field">
+            <span>Confirm Password</span>
+            <input id="signupConfirmInput" type="password" autocomplete="new-password" placeholder="Repeat password" required minlength="8">
+          </label>
+          <button class="primary-button" type="submit">
+            <i data-lucide="user-plus" aria-hidden="true"></i>
+            Create Account
+          </button>
+        </form>
+
+        <form class="auth-form hidden" id="verifyForm" data-auth-panel="verify">
+          <label class="field">
+            <span>Gmail Address</span>
+            <input id="verifyEmailInput" type="email" autocomplete="email" placeholder="you@gmail.com" required>
+          </label>
+          <label class="field">
+            <span>Verification Code</span>
+            <input id="verifyCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" required maxlength="6">
+          </label>
+          <button class="primary-button" type="submit">
+            <i data-lucide="badge-check" aria-hidden="true"></i>
+            Verify Email
+          </button>
+          <button class="text-button" id="resendVerificationButton" type="button">Resend code</button>
+        </form>
+
+        <form class="auth-form hidden" id="resetRequestForm" data-auth-panel="reset-request">
+          <label class="field">
+            <span>Gmail Address</span>
+            <input id="resetEmailInput" type="email" autocomplete="email" placeholder="you@gmail.com" required>
+          </label>
+          <button class="primary-button" type="submit">
+            <i data-lucide="mail" aria-hidden="true"></i>
+            Send Reset Code
+          </button>
+          <button class="text-button" id="backToLoginFromResetButton" type="button">Back to login</button>
+        </form>
+
+        <form class="auth-form hidden" id="resetPasswordForm" data-auth-panel="reset-password">
+          <label class="field">
+            <span>Gmail Address</span>
+            <input id="resetConfirmEmailInput" type="email" autocomplete="email" placeholder="you@gmail.com" required>
+          </label>
+          <label class="field">
+            <span>Reset Code</span>
+            <input id="resetCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" required maxlength="6">
+          </label>
+          <label class="field">
+            <span>New Password</span>
+            <input id="resetPasswordInput" type="password" autocomplete="new-password" placeholder="Minimum 8 characters" required minlength="8">
+          </label>
+          <button class="primary-button" type="submit">
+            <i data-lucide="key-round" aria-hidden="true"></i>
+            Update Password
+          </button>
+        </form>
+
         <p class="form-message" id="loginMessage" role="status" aria-live="polite"></p>
-      </form>
+      </div>
     </section>
 
     <main class="app-shell hidden" id="appShell">

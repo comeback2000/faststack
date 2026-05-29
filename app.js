@@ -40,6 +40,24 @@ const elements = {
   loginForm: document.querySelector("#loginForm"),
   emailInput: document.querySelector("#emailInput"),
   passwordInput: document.querySelector("#passwordInput"),
+  loginTabButton: document.querySelector("#loginTabButton"),
+  signupTabButton: document.querySelector("#signupTabButton"),
+  signupForm: document.querySelector("#signupForm"),
+  signupEmailInput: document.querySelector("#signupEmailInput"),
+  signupPasswordInput: document.querySelector("#signupPasswordInput"),
+  signupConfirmInput: document.querySelector("#signupConfirmInput"),
+  verifyForm: document.querySelector("#verifyForm"),
+  verifyEmailInput: document.querySelector("#verifyEmailInput"),
+  verifyCodeInput: document.querySelector("#verifyCodeInput"),
+  resendVerificationButton: document.querySelector("#resendVerificationButton"),
+  resetRequestForm: document.querySelector("#resetRequestForm"),
+  resetEmailInput: document.querySelector("#resetEmailInput"),
+  resetPasswordForm: document.querySelector("#resetPasswordForm"),
+  resetConfirmEmailInput: document.querySelector("#resetConfirmEmailInput"),
+  resetCodeInput: document.querySelector("#resetCodeInput"),
+  resetPasswordInput: document.querySelector("#resetPasswordInput"),
+  forgotPasswordButton: document.querySelector("#forgotPasswordButton"),
+  backToLoginFromResetButton: document.querySelector("#backToLoginFromResetButton"),
   loginMessage: document.querySelector("#loginMessage"),
   currencySelect: document.querySelector("#currencySelect"),
   exportButton: document.querySelector("#exportButton"),
@@ -103,9 +121,10 @@ async function initialize() {
 
   if (!isBackendConfigured()) {
     setAuthenticated(false);
-    elements.loginMessage.textContent = "Backend API is not configured. Add your Google Apps Script Web App URL in config.js.";
-    elements.loginMessage.classList.add("error");
-    elements.loginForm.querySelector("button").disabled = true;
+    showAuthMessage("Backend API is not configured. Add your Google Apps Script Web App URL in config.js.", true);
+    document.querySelectorAll(".login-panel button, .login-panel input").forEach((control) => {
+      control.disabled = true;
+    });
     refreshIcons();
     return;
   }
@@ -125,8 +144,7 @@ async function initialize() {
     await bootDashboard();
   } catch (loadError) {
     clearAuthSession();
-    elements.loginMessage.textContent = loadError.message || "Your session expired. Please log in again.";
-    elements.loginMessage.classList.add("error");
+    showAuthMessage(loadError.message || "Your session expired. Please log in again.", true);
     setAuthenticated(false);
   }
 }
@@ -147,6 +165,15 @@ async function bootDashboard() {
 
 function bindAuthEvents() {
   elements.loginForm.addEventListener("submit", handleLogin);
+  elements.signupForm.addEventListener("submit", handleSignup);
+  elements.verifyForm.addEventListener("submit", handleVerifyEmail);
+  elements.resetRequestForm.addEventListener("submit", handleResetRequest);
+  elements.resetPasswordForm.addEventListener("submit", handleResetPassword);
+  elements.loginTabButton.addEventListener("click", () => setAuthView("login"));
+  elements.signupTabButton.addEventListener("click", () => setAuthView("signup"));
+  elements.forgotPasswordButton.addEventListener("click", () => setAuthView("reset-request"));
+  elements.backToLoginFromResetButton.addEventListener("click", () => setAuthView("login"));
+  elements.resendVerificationButton.addEventListener("click", handleResendVerification);
   elements.logoutButton.addEventListener("click", async () => {
     if (state.token) {
       try {
@@ -164,7 +191,8 @@ function bindAuthEvents() {
     setAuthenticated(false);
     elements.emailInput.value = "";
     elements.passwordInput.value = "";
-    elements.loginMessage.textContent = "";
+    showAuthMessage("");
+    setAuthView("login");
     elements.emailInput.focus();
   });
 }
@@ -215,11 +243,15 @@ function bindEvents() {
 
 async function handleLogin(event) {
   event.preventDefault();
-  elements.loginMessage.textContent = "";
-  elements.loginMessage.classList.remove("error");
+  showAuthMessage("");
 
   const email = elements.emailInput.value.trim();
   const password = elements.passwordInput.value;
+
+  if (!isGmailAddress(email)) {
+    showAuthMessage("Only gmail.com email addresses are allowed.", true);
+    return;
+  }
 
   try {
     const result = await apiRequest("login", { email, password });
@@ -228,22 +260,154 @@ async function handleLogin(event) {
     sessionStorage.setItem(AUTH_TOKEN_KEY, result.token);
     sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(result.user));
   } catch (error) {
-    elements.loginMessage.textContent = error.message || "Login failed.";
-    elements.loginMessage.classList.add("error");
+    showAuthMessage(error.message || "Login failed.", true);
     return;
   }
 
-  elements.loginMessage.textContent = "";
-  elements.loginMessage.classList.remove("error");
+  showAuthMessage("");
   setAuthenticated(true);
   try {
     await bootDashboard();
   } catch (loadError) {
     clearAuthSession();
-    elements.loginMessage.textContent = loadError.message || "Could not load database data.";
-    elements.loginMessage.classList.add("error");
+    showAuthMessage(loadError.message || "Could not load database data.", true);
     setAuthenticated(false);
   }
+}
+
+async function handleSignup(event) {
+  event.preventDefault();
+  showAuthMessage("");
+
+  const email = elements.signupEmailInput.value.trim();
+  const password = elements.signupPasswordInput.value;
+  const confirmPassword = elements.signupConfirmInput.value;
+
+  if (!isGmailAddress(email)) {
+    showAuthMessage("Only gmail.com email addresses are allowed.", true);
+    return;
+  }
+  if (password !== confirmPassword) {
+    showAuthMessage("Passwords do not match.", true);
+    return;
+  }
+
+  try {
+    const result = await apiRequest("register", { email, password });
+    elements.verifyEmailInput.value = email;
+    setAuthView("verify");
+    showAuthMessage(result.message || "Verification code sent to your Gmail address.");
+  } catch (error) {
+    showAuthMessage(error.message || "Could not create account.", true);
+  }
+}
+
+async function handleVerifyEmail(event) {
+  event.preventDefault();
+  showAuthMessage("");
+
+  const email = elements.verifyEmailInput.value.trim();
+  const code = elements.verifyCodeInput.value.trim();
+
+  if (!isGmailAddress(email)) {
+    showAuthMessage("Only gmail.com email addresses are allowed.", true);
+    return;
+  }
+
+  try {
+    const result = await apiRequest("verifyEmail", { email, code });
+    elements.emailInput.value = email;
+    elements.verifyCodeInput.value = "";
+    setAuthView("login");
+    showAuthMessage(result.message || "Email verified. You can log in now.");
+  } catch (error) {
+    showAuthMessage(error.message || "Could not verify email.", true);
+  }
+}
+
+async function handleResendVerification() {
+  showAuthMessage("");
+  const email = elements.verifyEmailInput.value.trim() || elements.signupEmailInput.value.trim();
+
+  if (!isGmailAddress(email)) {
+    showAuthMessage("Enter your gmail.com address first.", true);
+    return;
+  }
+
+  try {
+    const result = await apiRequest("resendVerification", { email });
+    elements.verifyEmailInput.value = email;
+    showAuthMessage(result.message || "New verification code sent.");
+  } catch (error) {
+    showAuthMessage(error.message || "Could not resend code.", true);
+  }
+}
+
+async function handleResetRequest(event) {
+  event.preventDefault();
+  showAuthMessage("");
+
+  const email = elements.resetEmailInput.value.trim();
+  if (!isGmailAddress(email)) {
+    showAuthMessage("Only gmail.com email addresses are allowed.", true);
+    return;
+  }
+
+  try {
+    const result = await apiRequest("requestPasswordReset", { email });
+    elements.resetConfirmEmailInput.value = email;
+    setAuthView("reset-password");
+    showAuthMessage(result.message || "Password reset code sent.");
+  } catch (error) {
+    showAuthMessage(error.message || "Could not send reset code.", true);
+  }
+}
+
+async function handleResetPassword(event) {
+  event.preventDefault();
+  showAuthMessage("");
+
+  const email = elements.resetConfirmEmailInput.value.trim();
+  const code = elements.resetCodeInput.value.trim();
+  const password = elements.resetPasswordInput.value;
+
+  if (!isGmailAddress(email)) {
+    showAuthMessage("Only gmail.com email addresses are allowed.", true);
+    return;
+  }
+
+  try {
+    const result = await apiRequest("resetPassword", { email, code, password });
+    elements.emailInput.value = email;
+    elements.resetCodeInput.value = "";
+    elements.resetPasswordInput.value = "";
+    setAuthView("login");
+    showAuthMessage(result.message || "Password updated. Please log in.");
+  } catch (error) {
+    showAuthMessage(error.message || "Could not update password.", true);
+  }
+}
+
+function setAuthView(view) {
+  document.querySelectorAll("[data-auth-panel]").forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.authPanel !== view);
+  });
+  const isLogin = view === "login";
+  const isSignup = view === "signup";
+  elements.loginTabButton.classList.toggle("active", isLogin);
+  elements.signupTabButton.classList.toggle("active", isSignup);
+  elements.loginTabButton.setAttribute("aria-selected", String(isLogin));
+  elements.signupTabButton.setAttribute("aria-selected", String(isSignup));
+  refreshIcons();
+}
+
+function showAuthMessage(message, isError = false) {
+  elements.loginMessage.textContent = message;
+  elements.loginMessage.classList.toggle("error", isError);
+}
+
+function isGmailAddress(email) {
+  return /^[^\s@]+@gmail\.com$/i.test(String(email || "").trim());
 }
 
 function setAuthenticated(authenticated) {

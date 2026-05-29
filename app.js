@@ -927,7 +927,18 @@ async function apiRequest(action, payload = {}) {
     throw new Error(`Backend request failed with status ${response.status}.`);
   }
 
-  const result = await response.json();
+  const responseText = await response.text();
+  let result;
+  try {
+    result = JSON.parse(responseText);
+  } catch {
+    const plainText = responseText.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (plainText.includes("Script function not found")) {
+      throw new Error("Google Apps Script backend is not deployed with Code.gs. Paste the backend code and redeploy the Web App.");
+    }
+    throw new Error("Backend returned an invalid response. Check the Google Apps Script deployment.");
+  }
+
   if (!result.ok) {
     throw new Error(result.error || "Backend request failed.");
   }

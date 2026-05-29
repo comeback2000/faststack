@@ -79,7 +79,7 @@ function setupFastStackBackend() {
 function createUser(email, password, role) {
   setupFastStackBackend();
   const userEmail = validateGmailEmail_(email);
-  const userPassword = validatePassword_(password);
+  const userPassword = normalizePasswordMaterial_(userEmail, password);
   const userRole = role === "admin" ? "admin" : "user";
   const now = nowIso_();
   const lock = LockService.getScriptLock();
@@ -118,7 +118,7 @@ function createUser(email, password, role) {
 function resetUserPassword(email, newPassword) {
   setupFastStackBackend();
   const userEmail = validateGmailEmail_(email);
-  const userPassword = validatePassword_(newPassword);
+  const userPassword = normalizePasswordMaterial_(userEmail, newPassword);
   const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
   const data = usersSheet.getDataRange().getValues();
   const headers = data[0];
@@ -137,62 +137,80 @@ function resetUserPassword(email, newPassword) {
   throw new Error("User not found.");
 }
 
-function doGet() {
-  ensureFastStackBackend_();
-  return jsonResponse_({
-    ok: true,
-    data: {
-      service: "FastStack Google Sheets API",
-      status: "ready",
-    },
-  });
+function doGet(event) {
+  try {
+    ensureFastStackBackend_();
+    if (event && event.parameter && event.parameter.callback && event.parameter.payload) {
+      const callback = validateCallback_(event.parameter.callback);
+      const request = JSON.parse(event.parameter.payload);
+      return javascriptResponse_(callback + "(" + JSON.stringify(handleApiRequest_(request)) + ");");
+    }
+
+    return jsonResponse_({
+      ok: true,
+      data: {
+        service: "FastStack Google Sheets API",
+        status: "ready",
+      },
+    });
+  } catch (error) {
+    const callback = event && event.parameter && event.parameter.callback;
+    if (callback && /^[A-Za-z_$][0-9A-Za-z_$]*$/.test(callback)) {
+      return javascriptResponse_(callback + "(" + JSON.stringify({ ok: false, error: safeError_(error) }) + ");");
+    }
+    return jsonResponse_({ ok: false, error: safeError_(error) });
+  }
 }
 
 function doPost(event) {
   try {
     ensureFastStackBackend_();
     const request = parseRequest_(event);
-    const action = String(request.action || "");
-    let data;
-
-    if (action === "login") {
-      data = login_(request);
-    } else if (action === "register") {
-      data = register_(request);
-    } else if (action === "verifyEmail") {
-      data = verifyEmail_(request);
-    } else if (action === "resendVerification") {
-      data = resendVerification_(request);
-    } else if (action === "requestPasswordReset") {
-      data = requestPasswordReset_(request);
-    } else if (action === "resetPassword") {
-      data = resetPassword_(request);
-    } else if (action === "logout") {
-      data = logout_(request);
-    } else {
-      const session = requireSession_(request.token);
-      if (action === "bootstrap") {
-        data = bootstrap_(session);
-      } else if (action === "saveGroup") {
-        data = saveGroup_(session, request.group);
-      } else if (action === "saveTransaction") {
-        data = saveTransaction_(session, request.transaction);
-      } else if (action === "deleteTransaction") {
-        data = deleteTransaction_(session, request.id);
-      } else {
-        throw new Error("Unsupported action.");
-      }
-    }
-
-    return jsonResponse_({ ok: true, data: data });
+    return jsonResponse_(handleApiRequest_(request));
   } catch (error) {
     return jsonResponse_({ ok: false, error: safeError_(error) });
   }
 }
 
+function handleApiRequest_(request) {
+  const action = String(request.action || "");
+  let data;
+
+  if (action === "login") {
+    data = login_(request);
+  } else if (action === "register") {
+    data = register_(request);
+  } else if (action === "verifyEmail") {
+    data = verifyEmail_(request);
+  } else if (action === "resendVerification") {
+    data = resendVerification_(request);
+  } else if (action === "requestPasswordReset") {
+    data = requestPasswordReset_(request);
+  } else if (action === "resetPassword") {
+    data = resetPassword_(request);
+  } else if (action === "logout") {
+    data = logout_(request);
+  } else {
+    const session = requireSession_(request.token);
+    if (action === "bootstrap") {
+      data = bootstrap_(session);
+    } else if (action === "saveGroup") {
+      data = saveGroup_(session, request.group);
+    } else if (action === "saveTransaction") {
+      data = saveTransaction_(session, request.transaction);
+    } else if (action === "deleteTransaction") {
+      data = deleteTransaction_(session, request.id);
+    } else {
+      throw new Error("Unsupported action.");
+    }
+  }
+
+  return { ok: true, data: data };
+}
+
 function register_(request) {
   const email = validateGmailEmail_(request.email);
-  const password = validatePassword_(request.password);
+  const password = normalizePasswordMaterial_(email, request.password);
   rateLimitAction_("register", email, 5, 3600);
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -328,7 +346,7 @@ function requestPasswordReset_(request) {
 function resetPassword_(request) {
   const email = validateGmailEmail_(request.email);
   const code = validateCode_(request.code);
-  const password = validatePassword_(request.password);
+  const password = normalizePasswordMaterial_(email, request.password);
   const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
   const data = usersSheet.getDataRange().getValues();
   const map = headerMap_(data[0]);
@@ -360,7 +378,7 @@ function resetPassword_(request) {
 
 function login_(request) {
   const email = validateGmailEmail_(request.email);
-  const password = validatePassword_(request.password);
+  const password = normalizePasswordMaterial_(email, request.password);
   rateLimitLogin_(email);
 
   const usersSheet = getSheet_(FASTSTACK_SHEETS.USERS.name);
@@ -697,10 +715,26 @@ function validatePassword_(password) {
   return value;
 }
 
+function normalizePasswordMaterial_(email, password) {
+  const value = validatePassword_(password);
+  if (/^[a-f0-9]{64}$/i.test(value)) {
+    return value.toLowerCase();
+  }
+  return sha256Hex_(email + ":" + value);
+}
+
 function validateCode_(code) {
   const value = String(code || "").trim();
   if (!/^\d{6}$/.test(value)) {
     throw new Error("Enter the 6-digit code.");
+  }
+  return value;
+}
+
+function validateCallback_(callback) {
+  const value = String(callback || "");
+  if (!/^[A-Za-z_$][0-9A-Za-z_$]*$/.test(value)) {
+    throw new Error("Invalid callback.");
   }
   return value;
 }
@@ -1015,4 +1049,10 @@ function jsonResponse_(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function javascriptResponse_(source) {
+  return ContentService
+    .createTextOutput(source)
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }

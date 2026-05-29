@@ -254,7 +254,7 @@ async function handleLogin(event) {
   }
 
   try {
-    const result = await apiRequest("login", { email, password });
+    const result = await apiRequest("login", { email, password: await getPasswordMaterial(email, password) });
     state.token = result.token;
     state.user = result.user;
     sessionStorage.setItem(AUTH_TOKEN_KEY, result.token);
@@ -293,7 +293,7 @@ async function handleSignup(event) {
   }
 
   try {
-    const result = await apiRequest("register", { email, password });
+    const result = await apiRequest("register", { email, password: await getPasswordMaterial(email, password) });
     elements.verifyEmailInput.value = email;
     setAuthView("verify");
     showAuthMessage(result.message || "Verification code sent to your Gmail address.");
@@ -377,7 +377,7 @@ async function handleResetPassword(event) {
   }
 
   try {
-    const result = await apiRequest("resetPassword", { email, code, password });
+    const result = await apiRequest("resetPassword", { email, code, password: await getPasswordMaterial(email, password) });
     elements.emailInput.value = email;
     elements.resetCodeInput.value = "";
     elements.resetPasswordInput.value = "";
@@ -1079,35 +1079,56 @@ function isBackendConfigured() {
 }
 
 async function apiRequest(action, payload = {}) {
-  const response = await fetch(BACKEND_CONFIG.apiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain;charset=utf-8",
-    },
-    body: JSON.stringify({ action, ...payload }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Backend request failed with status ${response.status}.`);
-  }
-
-  const responseText = await response.text();
-  let result;
-  try {
-    result = JSON.parse(responseText);
-  } catch {
-    const plainText = responseText.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    if (plainText.includes("Script function not found")) {
-      throw new Error("Google Apps Script backend is not deployed with Code.gs. Paste the backend code and redeploy the Web App.");
-    }
-    throw new Error("Backend returned an invalid response. Check the Google Apps Script deployment.");
-  }
+  const result = await jsonpRequest({ action, ...payload });
 
   if (!result.ok) {
     throw new Error(result.error || "Backend request failed.");
   }
 
   return result.data || {};
+}
+
+function jsonpRequest(payload) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `faststackCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const url = new URL(BACKEND_CONFIG.apiUrl);
+    url.searchParams.set("callback", callbackName);
+    url.searchParams.set("payload", JSON.stringify(payload));
+
+    const script = document.createElement("script");
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Could not reach Google Apps Script backend. Paste the latest Code.gs and redeploy the Web App."));
+    }, 30000);
+
+    function cleanup() {
+      window.clearTimeout(timeoutId);
+      delete window[callbackName];
+      script.remove();
+    }
+
+    window[callbackName] = (result) => {
+      cleanup();
+      resolve(result);
+    };
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("Could not reach Google Apps Script backend. Check the Web App deployment and access settings."));
+    };
+
+    script.src = url.toString();
+    document.body.appendChild(script);
+  });
+}
+
+async function getPasswordMaterial(email, password) {
+  const source = `${String(email || "").trim().toLowerCase()}:${password}`;
+  const bytes = new TextEncoder().encode(source);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function clearAuthSession() {

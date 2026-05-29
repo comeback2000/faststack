@@ -1,3 +1,3 @@
 window.FASTSTACK_BACKEND = {
-  apiUrl: "https://script.google.com/macros/s/AKfycbyblJJ__zHmUawi2LeC6YfyfrswNKBaINI370CQqCHYL2k4Zo3AqI5d9M8MSXH5zmJh/exec",
+  apiUrl: "https://script.google.com/macros/s/AKfycbyQlFCosXoSfrQhgS2eT2PIAlQsnUIjYKjxpmbaTW4YM08QxHhEbuvIlF_O9DSrJVN3/exec",
 };

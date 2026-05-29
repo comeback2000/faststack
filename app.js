@@ -307,7 +307,7 @@ async function handleVerifyEmail(event) {
   showAuthMessage("");
 
   const email = elements.verifyEmailInput.value.trim();
-  const code = elements.verifyCodeInput.value.trim();
+  const code = sanitizeOneTimeCode(elements.verifyCodeInput.value);
 
   if (!isGmailAddress(email)) {
     showAuthMessage("Only gmail.com email addresses are allowed.", true);
@@ -408,6 +408,10 @@ function showAuthMessage(message, isError = false) {
 
 function isGmailAddress(email) {
   return /^[^\s@]+@gmail\.com$/i.test(String(email || "").trim());
+}
+
+function sanitizeOneTimeCode(value) {
+  return String(value || "").replace(/\D/g, "").slice(0, 6);
 }
 
 function setAuthenticated(authenticated) {

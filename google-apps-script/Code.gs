@@ -140,6 +140,16 @@ function resetUserPassword(email, newPassword) {
 function doGet(event) {
   try {
     ensureFastStackBackend_();
+    if (event && event.parameter && event.parameter.verifyEmail && event.parameter.code) {
+      const result = handleApiRequest_({
+        action: "verifyEmail",
+        email: event.parameter.verifyEmail,
+        code: event.parameter.code,
+      });
+      const message = result.ok ? result.data.message : result.error;
+      return htmlResponse_(message, result.ok);
+    }
+
     if (event && event.parameter && event.parameter.callback && event.parameter.payload) {
       const callback = validateCallback_(event.parameter.callback);
       const request = JSON.parse(event.parameter.payload);
@@ -157,6 +167,9 @@ function doGet(event) {
     const callback = event && event.parameter && event.parameter.callback;
     if (callback && /^[A-Za-z_$][0-9A-Za-z_$]*$/.test(callback)) {
       return javascriptResponse_(callback + "(" + JSON.stringify({ ok: false, error: safeError_(error) }) + ");");
+    }
+    if (event && event.parameter && event.parameter.verifyEmail) {
+      return htmlResponse_(safeError_(error), false);
     }
     return jsonResponse_({ ok: false, error: safeError_(error) });
   }
@@ -724,7 +737,7 @@ function normalizePasswordMaterial_(email, password) {
 }
 
 function validateCode_(code) {
-  const value = String(code || "").trim();
+  const value = String(code || "").replace(/\D/g, "");
   if (!/^\d{6}$/.test(value)) {
     throw new Error("Enter the 6-digit code.");
   }
@@ -995,10 +1008,14 @@ function minutesFromNowIso_(minutes) {
 
 function sendVerificationEmail_(email, code) {
   const subject = "Verify your FastStack Expense Tracker account";
+  const verifyUrl = getVerificationUrl_(email, code);
   const body = [
     "Your FastStack verification code is: " + code,
     "",
     "This code expires in " + FASTSTACK_VERIFICATION_MINUTES + " minutes.",
+    "",
+    "You can also verify instantly by opening this link:",
+    verifyUrl,
     "",
     "Open the app and enter this code:",
     FASTSTACK_FRONTEND_URL,
@@ -1006,6 +1023,16 @@ function sendVerificationEmail_(email, code) {
     "If you did not request this account, ignore this email.",
   ].join("\n");
   MailApp.sendEmail(email, subject, body);
+}
+
+function getVerificationUrl_(email, code) {
+  const serviceUrl = ScriptApp.getService().getUrl();
+  if (!serviceUrl) {
+    return FASTSTACK_FRONTEND_URL;
+  }
+  return serviceUrl
+    + "?verifyEmail=" + encodeURIComponent(email)
+    + "&code=" + encodeURIComponent(code);
 }
 
 function sendPasswordResetEmail_(email, code) {
@@ -1051,8 +1078,31 @@ function jsonResponse_(payload) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function htmlResponse_(message, ok) {
+  const color = ok ? "#0f766e" : "#c24135";
+  const title = ok ? "Email Verified" : "Verification Failed";
+  const html = [
+    "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+    "<title>" + title + "</title>",
+    "<style>body{font-family:Arial,sans-serif;background:#f6f8fb;color:#18212f;display:grid;min-height:100vh;place-items:center;margin:0;padding:20px}.box{max-width:520px;background:white;border:1px solid #dce4ec;border-radius:8px;padding:28px;box-shadow:0 20px 45px rgba(25,39,52,.09)}h1{margin:0 0 12px;color:" + color + "}a{color:#0f766e;font-weight:700}</style>",
+    "</head><body><main class=\"box\"><h1>" + escapeHtmlForResponse_(title) + "</h1>",
+    "<p>" + escapeHtmlForResponse_(message) + "</p>",
+    "<p><a href=\"" + FASTSTACK_FRONTEND_URL + "\">Open FastStack Expense Tracker</a></p>",
+    "</main></body></html>",
+  ].join("");
+  return HtmlService.createHtmlOutput(html);
+}
+
 function javascriptResponse_(source) {
   return ContentService
     .createTextOutput(source)
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+function escapeHtmlForResponse_(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

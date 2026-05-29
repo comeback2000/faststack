@@ -492,13 +492,8 @@ async function handleSubmit(event) {
     return;
   }
 
-  try {
-    await persistGroup(transaction.category);
-    await persistTransaction(transaction, currentMode);
-  } catch (error) {
-    showFormMessage(error.message || "Could not save to database.", true);
-    return;
-  }
+  const previousState = snapshotDashboardState();
+  const wasEditing = Boolean(elements.expenseId.value);
 
   if (currentMode === "cash-in") {
     upsertTransaction(state.cashIns, transaction);
@@ -513,8 +508,18 @@ async function handleSubmit(event) {
 
   resetForm();
   setMode(currentMode);
-  showFormMessage(currentMode === "cash-in" ? "Cash In added and allocated." : "Expense added.");
   render();
+  showFormMessage(wasEditing ? "Saved. Syncing..." : currentMode === "cash-in" ? "Cash In added. Syncing..." : "Expense added. Syncing...");
+
+  try {
+    await persistTransaction(transaction, currentMode);
+    showFormMessage(wasEditing ? "Changes saved." : currentMode === "cash-in" ? "Cash In added and allocated." : "Expense added.");
+  } catch (error) {
+    restoreDashboardState(previousState);
+    render();
+    editTransaction(transaction, currentMode);
+    showFormMessage(error.message || "Could not save to database.", true);
+  }
 }
 
 function upsertTransaction(collection, transaction) {
@@ -524,6 +529,25 @@ function upsertTransaction(collection, transaction) {
   } else {
     collection.unshift(transaction);
   }
+}
+
+function snapshotDashboardState() {
+  return {
+    cashIns: state.cashIns.map((item) => ({ ...item })),
+    expenses: state.expenses.map((item) => ({ ...item })),
+    groups: state.groups.map((item) => ({ ...item })),
+    filters: { ...state.filters },
+  };
+}
+
+function restoreDashboardState(snapshot) {
+  state.cashIns = snapshot.cashIns.map((item) => ({ ...item }));
+  state.expenses = snapshot.expenses.map((item) => ({ ...item }));
+  state.groups = snapshot.groups.map((item) => ({ ...item }));
+  state.filters = { ...snapshot.filters };
+  elements.weekFilter.value = state.filters.week;
+  elements.categoryFilter.value = state.filters.group;
+  populateGroupControls();
 }
 
 function resolveSelectedGroup() {

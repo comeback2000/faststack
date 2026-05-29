@@ -480,10 +480,13 @@ function saveTransaction_(session, transaction) {
 
   try {
     upsertGroup_(session.userId, normalized.category, normalized.color);
-    const saved = upsertTransaction_(session.userId, normalized);
-    refreshBalances_(session.userId);
-    logHistory_(session, "saveTransaction", "transaction", saved.id, JSON.stringify(saved));
-    return { transaction: saved, balances: getBalancesForUser_(session.userId) };
+    const result = upsertTransaction_(session.userId, normalized);
+    if (result.previous) {
+      adjustBalanceForTransaction_(session.userId, result.previous, -1);
+    }
+    adjustBalanceForTransaction_(session.userId, result.saved, 1);
+    logHistory_(session, "saveTransaction", "transaction", result.saved.id, JSON.stringify(result.saved));
+    return { transaction: result.saved };
   } finally {
     lock.releaseLock();
   }
@@ -569,6 +572,12 @@ function upsertTransaction_(userId, transaction) {
 
   for (let row = 1; row < data.length; row += 1) {
     if (data[row][map.transactionId] === transaction.id && data[row][map.userId] === userId && !data[row][map.deletedAt]) {
+      const previous = {
+        id: data[row][map.transactionId],
+        type: data[row][map.type],
+        amount: Number(data[row][map.amount]),
+        category: data[row][map.category],
+      };
       sheet.getRange(row + 1, map.type + 1).setValue(transaction.type);
       sheet.getRange(row + 1, map.description + 1).setValue(transaction.description);
       sheet.getRange(row + 1, map.amount + 1).setValue(transaction.amount);
@@ -577,7 +586,7 @@ function upsertTransaction_(userId, transaction) {
       sheet.getRange(row + 1, map.time + 1).setValue(transaction.time);
       sheet.getRange(row + 1, map.notes + 1).setValue(transaction.notes);
       sheet.getRange(row + 1, map.updatedAt + 1).setValue(now);
-      return transaction;
+      return { saved: transaction, previous: previous };
     }
   }
 
@@ -595,7 +604,39 @@ function upsertTransaction_(userId, transaction) {
     updatedAt: now,
     deletedAt: "",
   });
-  return transaction;
+  return { saved: transaction, previous: null };
+}
+
+function adjustBalanceForTransaction_(userId, transaction, multiplier) {
+  const sheet = getSheet_(FASTSTACK_SHEETS.BALANCES.name);
+  const data = sheet.getDataRange().getValues();
+  const map = headerMap_(data[0]);
+  const amount = Number(transaction.amount || 0) * multiplier;
+  const category = transaction.category || "Other";
+  const now = nowIso_();
+
+  for (let row = 1; row < data.length; row += 1) {
+    if (data[row][map.userId] === userId && data[row][map.category] === category) {
+      const allocated = Number(data[row][map.allocated] || 0) + (transaction.type === "cash-in" ? amount : 0);
+      const spent = Number(data[row][map.spent] || 0) + (transaction.type === "expense" ? amount : 0);
+      sheet.getRange(row + 1, map.allocated + 1).setValue(Math.round(allocated * 100) / 100);
+      sheet.getRange(row + 1, map.spent + 1).setValue(Math.round(spent * 100) / 100);
+      sheet.getRange(row + 1, map.balance + 1).setValue(Math.round((allocated - spent) * 100) / 100);
+      sheet.getRange(row + 1, map.updatedAt + 1).setValue(now);
+      return;
+    }
+  }
+
+  const allocated = transaction.type === "cash-in" ? amount : 0;
+  const spent = transaction.type === "expense" ? amount : 0;
+  appendObject_(sheet, FASTSTACK_SHEETS.BALANCES.headers, {
+    userId: userId,
+    category: category,
+    allocated: Math.round(allocated * 100) / 100,
+    spent: Math.round(spent * 100) / 100,
+    balance: Math.round((allocated - spent) * 100) / 100,
+    updatedAt: now,
+  });
 }
 
 function refreshBalances_(userId) {

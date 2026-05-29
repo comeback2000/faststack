@@ -1079,7 +1079,14 @@ function isBackendConfigured() {
 }
 
 async function apiRequest(action, payload = {}) {
-  const result = await jsonpRequest({ action, ...payload });
+  const requestPayload = { action, ...payload };
+  let result;
+
+  try {
+    result = await getRequest(requestPayload);
+  } catch {
+    result = await jsonpRequest(requestPayload);
+  }
 
   if (!result.ok) {
     throw new Error(result.error || "Backend request failed.");
@@ -1088,12 +1095,24 @@ async function apiRequest(action, payload = {}) {
   return result.data || {};
 }
 
+async function getRequest(payload) {
+  const responseText = await fetch(buildBackendUrl("faststackFetch", payload), {
+    method: "GET",
+    cache: "no-store",
+  }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`Backend request failed with status ${response.status}.`);
+    }
+    return response.text();
+  });
+
+  return parseBackendResponse(responseText, "faststackFetch");
+}
+
 function jsonpRequest(payload) {
   return new Promise((resolve, reject) => {
     const callbackName = `faststackCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const url = new URL(BACKEND_CONFIG.apiUrl);
-    url.searchParams.set("callback", callbackName);
-    url.searchParams.set("payload", JSON.stringify(payload));
+    const url = buildBackendUrl(callbackName, payload);
 
     const script = document.createElement("script");
     const timeoutId = window.setTimeout(() => {
@@ -1117,9 +1136,30 @@ function jsonpRequest(payload) {
       reject(new Error(`Could not reach Google Apps Script backend at ${BACKEND_CONFIG.apiUrl}. Refresh the page or open the app in a private window.`));
     };
 
-    script.src = url.toString();
+    script.src = url;
     document.body.appendChild(script);
   });
+}
+
+function buildBackendUrl(callbackName, payload) {
+  const url = new URL(BACKEND_CONFIG.apiUrl);
+  url.searchParams.set("callback", callbackName);
+  url.searchParams.set("payload", JSON.stringify(payload));
+  return url.toString();
+}
+
+function parseBackendResponse(responseText, callbackName) {
+  const trimmed = responseText.trim();
+  if (trimmed.startsWith("{")) {
+    return JSON.parse(trimmed);
+  }
+
+  const prefix = `${callbackName}(`;
+  if (trimmed.startsWith(prefix) && trimmed.endsWith(");")) {
+    return JSON.parse(trimmed.slice(prefix.length, -2));
+  }
+
+  throw new Error("Backend returned an invalid response.");
 }
 
 async function getPasswordMaterial(email, password) {

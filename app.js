@@ -1114,7 +1114,7 @@ function jsonpRequest(payload) {
 
     script.onerror = () => {
       cleanup();
-      reject(new Error("Could not reach Google Apps Script backend. Check the Web App deployment and access settings."));
+      reject(new Error(`Could not reach Google Apps Script backend at ${BACKEND_CONFIG.apiUrl}. Refresh the page or open the app in a private window.`));
     };
 
     script.src = url.toString();

@@ -5,11 +5,14 @@ A clean, dependency-free personal expense tracker built for GitHub Pages.
 ## Features
 
 - Add, edit, and delete expenses.
-- Categorize transactions and filter by month, category, or search text.
-- View monthly totals, daily average spend, transaction count, and top category.
-- Track six-month spending trends and category breakdowns.
+- Add Cash In entries and allocate funds to budget groups.
+- Use default groups such as Tour Expenses, Petty Cash, Office Expenses, Project Expenses, and Other, or create custom groups while entering transactions.
+- Track allocated funds, actual spending, and remaining balances for each group.
+- Filter by week, group, or search text.
+- View weekly spend, weekly cash in, running balance, and active groups.
+- Track six-week spending trends and daily expense breakdowns grouped by date.
 - Save data locally in the browser with `localStorage`.
-- Export expenses as JSON.
+- Export expenses, cash-in entries, groups, and settings as JSON.
 
 ## GitHub Pages
 

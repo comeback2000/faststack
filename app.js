@@ -1,37 +1,61 @@
-const STORAGE_KEY = "faststack-expenses-v1";
+const EXPENSE_STORAGE_KEY = "faststack-expenses-v1";
+const CASH_IN_STORAGE_KEY = "faststack-cash-in-v1";
+const GROUP_STORAGE_KEY = "faststack-groups-v1";
 const SETTINGS_KEY = "faststack-settings-v1";
+const CUSTOM_GROUP_VALUE = "__custom_group__";
 
-const categories = [
-  { name: "Food", color: "#0f766e" },
-  { name: "Housing", color: "#2563eb" },
-  { name: "Transport", color: "#d97706" },
-  { name: "Shopping", color: "#db2777" },
-  { name: "Health", color: "#16a34a" },
-  { name: "Bills", color: "#7c3aed" },
-  { name: "Travel", color: "#0891b2" },
+const defaultGroups = [
+  { name: "Tour Expenses", color: "#0f766e" },
+  { name: "Petty Cash", color: "#2563eb" },
+  { name: "Office Expenses", color: "#d97706" },
+  { name: "Project Expenses", color: "#7c3aed" },
   { name: "Other", color: "#64748b" },
 ];
 
+const colorPool = [
+  "#0f766e",
+  "#2563eb",
+  "#d97706",
+  "#7c3aed",
+  "#db2777",
+  "#16a34a",
+  "#0891b2",
+  "#c24135",
+  "#475569",
+];
+
+const sampleCashIns = [
+  createCashIn("Opening petty cash", 800, "Petty Cash", daysAgo(1), "Weekly float"),
+  createCashIn("Tour advance", 1500, "Tour Expenses", daysAgo(3), "North route travel"),
+  createCashIn("Client project allocation", 2200, "Project Expenses", daysAgo(9), "Phase one budget"),
+  createCashIn("Office operating fund", 950, "Office Expenses", daysAgo(15), ""),
+];
+
 const sampleExpenses = [
-  createExpense("Groceries and produce", 86.4, "Food", daysAgo(1), "Weekly market run"),
-  createExpense("Apartment rent", 1450, "Housing", daysAgo(4), "May rent"),
-  createExpense("Metro card refill", 40, "Transport", daysAgo(8), ""),
-  createExpense("Doctor visit", 120, "Health", daysAgo(14), "Routine checkup"),
-  createExpense("Internet bill", 64.99, "Bills", daysAgo(20), ""),
-  createExpense("Running shoes", 132.5, "Shopping", daysAgo(32), "Replacement pair"),
-  createExpense("Weekend train tickets", 76, "Travel", daysAgo(49), ""),
-  createExpense("Dinner with friends", 58.25, "Food", daysAgo(67), ""),
+  createExpense("Team lunch during tour", 126.4, "Tour Expenses", daysAgo(1), "Field visit"),
+  createExpense("Fuel and tolls", 210, "Tour Expenses", daysAgo(2), "Route expenses"),
+  createExpense("Courier charges", 38.5, "Petty Cash", daysAgo(3), ""),
+  createExpense("Printer paper", 64.99, "Office Expenses", daysAgo(4), ""),
+  createExpense("Prototype materials", 420, "Project Expenses", daysAgo(5), "Phase one"),
+  createExpense("Tea and snacks", 28.25, "Petty Cash", daysAgo(8), ""),
+  createExpense("Software subscription", 132.5, "Project Expenses", daysAgo(12), ""),
+  createExpense("Office bulbs", 76, "Office Expenses", daysAgo(19), ""),
 ];
 
 const state = {
   expenses: loadExpenses(),
+  cashIns: loadCashIns(),
+  groups: [],
   settings: loadSettings(),
+  mode: "expense",
   filters: {
     search: "",
-    month: getCurrentMonth(),
-    category: "All",
+    week: getCurrentWeek(),
+    group: "All",
   },
 };
+
+state.groups = loadGroups();
 
 const elements = {
   currencySelect: document.querySelector("#currencySelect"),
@@ -39,106 +63,173 @@ const elements = {
   form: document.querySelector("#expenseForm"),
   expenseId: document.querySelector("#expenseId"),
   descriptionInput: document.querySelector("#descriptionInput"),
+  descriptionLabel: document.querySelector("#descriptionLabel"),
   amountInput: document.querySelector("#amountInput"),
   dateInput: document.querySelector("#dateInput"),
   categoryInput: document.querySelector("#categoryInput"),
+  categoryLabel: document.querySelector("#categoryLabel"),
+  customGroupField: document.querySelector("#customGroupField"),
+  customGroupInput: document.querySelector("#customGroupInput"),
   notesInput: document.querySelector("#notesInput"),
   formTitle: document.querySelector("#formTitle"),
   submitButton: document.querySelector("#submitButton"),
   cancelEditButton: document.querySelector("#cancelEditButton"),
-  monthTotal: document.querySelector("#monthTotal"),
-  dailyAverage: document.querySelector("#dailyAverage"),
-  topCategory: document.querySelector("#topCategory"),
-  transactionCount: document.querySelector("#transactionCount"),
+  expenseModeButton: document.querySelector("#expenseModeButton"),
+  cashInModeButton: document.querySelector("#cashInModeButton"),
+  weekTotal: document.querySelector("#weekTotal"),
+  cashInTotal: document.querySelector("#cashInTotal"),
+  runningBalance: document.querySelector("#runningBalance"),
+  activeGroups: document.querySelector("#activeGroups"),
   trendDelta: document.querySelector("#trendDelta"),
   trendChart: document.querySelector("#trendChart"),
   categoryBreakdown: document.querySelector("#categoryBreakdown"),
+  dailyBreakdown: document.querySelector("#dailyBreakdown"),
   expenseTable: document.querySelector("#expenseTable"),
+  cashInTable: document.querySelector("#cashInTable"),
   emptyState: document.querySelector("#emptyState"),
+  cashInEmptyState: document.querySelector("#cashInEmptyState"),
   searchInput: document.querySelector("#searchInput"),
-  monthFilter: document.querySelector("#monthFilter"),
+  weekFilter: document.querySelector("#weekFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
 };
 
 initialize();
 
 function initialize() {
-  populateCategories();
+  populateGroupControls();
   elements.currencySelect.value = state.settings.currency;
-  elements.monthFilter.value = state.filters.month;
+  elements.weekFilter.value = state.filters.week;
   elements.dateInput.valueAsDate = new Date();
   bindEvents();
+  setMode("expense");
   render();
-
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
 }
 
 function bindEvents() {
   elements.form.addEventListener("submit", handleSubmit);
   elements.cancelEditButton.addEventListener("click", resetForm);
+  elements.expenseModeButton.addEventListener("click", () => setMode("expense"));
+  elements.cashInModeButton.addEventListener("click", () => setMode("cash-in"));
+  elements.categoryInput.addEventListener("change", toggleCustomGroup);
   elements.currencySelect.addEventListener("change", () => {
     state.settings.currency = elements.currencySelect.value;
     saveSettings();
     render();
   });
-  elements.exportButton.addEventListener("click", exportExpenses);
+  elements.exportButton.addEventListener("click", exportData);
   elements.searchInput.addEventListener("input", () => {
     state.filters.search = elements.searchInput.value.trim().toLowerCase();
     renderTransactions();
+    renderCashIns();
   });
-  elements.monthFilter.addEventListener("change", () => {
-    state.filters.month = elements.monthFilter.value;
+  elements.weekFilter.addEventListener("change", () => {
+    state.filters.week = elements.weekFilter.value || getCurrentWeek();
     render();
   });
   elements.categoryFilter.addEventListener("change", () => {
-    state.filters.category = elements.categoryFilter.value;
+    state.filters.group = elements.categoryFilter.value;
     renderTransactions();
+    renderCashIns();
+    renderDailyBreakdown();
   });
-  elements.expenseTable.addEventListener("click", handleTableClick);
+  elements.expenseTable.addEventListener("click", handleExpenseTableClick);
+  elements.cashInTable.addEventListener("click", handleCashInTableClick);
 }
 
-function populateCategories() {
-  elements.categoryInput.innerHTML = categories.map((category) => {
-    return `<option value="${category.name}">${category.name}</option>`;
+function setMode(mode) {
+  state.mode = mode;
+  const isCashIn = mode === "cash-in";
+
+  elements.expenseModeButton.classList.toggle("active", !isCashIn);
+  elements.cashInModeButton.classList.toggle("active", isCashIn);
+  elements.expenseModeButton.setAttribute("aria-selected", String(!isCashIn));
+  elements.cashInModeButton.setAttribute("aria-selected", String(isCashIn));
+  elements.descriptionLabel.textContent = isCashIn ? "Source" : "Description";
+  elements.descriptionInput.placeholder = isCashIn ? "Owner transfer, client advance, reimbursement" : "Meals, supplies, taxi, software";
+  elements.categoryLabel.textContent = isCashIn ? "Allocate To" : "Expense Group";
+  elements.formTitle.textContent = isCashIn ? "Add Cash In" : "Add Expense";
+  elements.submitButton.innerHTML = isCashIn
+    ? `<i data-lucide="arrow-down-to-line" aria-hidden="true"></i> Add Cash In`
+    : `<i data-lucide="plus" aria-hidden="true"></i> Add Expense`;
+
+  elements.expenseId.value = "";
+  elements.cancelEditButton.classList.add("hidden");
+  toggleCustomGroup();
+  refreshIcons();
+}
+
+function populateGroupControls() {
+  const options = state.groups.map((group) => {
+    return `<option value="${escapeAttribute(group.name)}">${escapeHtml(group.name)}</option>`;
   }).join("");
 
+  elements.categoryInput.innerHTML = `${options}<option value="${CUSTOM_GROUP_VALUE}">+ Custom group</option>`;
   elements.categoryFilter.innerHTML = [
-    `<option value="All">All categories</option>`,
-    ...categories.map((category) => `<option value="${category.name}">${category.name}</option>`),
+    `<option value="All">All groups</option>`,
+    ...state.groups.map((group) => `<option value="${escapeAttribute(group.name)}">${escapeHtml(group.name)}</option>`),
   ].join("");
+  elements.categoryFilter.value = state.filters.group;
+}
+
+function toggleCustomGroup() {
+  const isCustom = elements.categoryInput.value === CUSTOM_GROUP_VALUE;
+  elements.customGroupField.classList.toggle("hidden", !isCustom);
+  elements.customGroupInput.required = isCustom;
 }
 
 function handleSubmit(event) {
   event.preventDefault();
 
-  const expense = {
-    id: elements.expenseId.value || createId(),
+  const group = resolveSelectedGroup();
+  const transaction = {
+    id: elements.expenseId.value || createId(state.mode === "cash-in" ? "cash-in" : "expense"),
     description: elements.descriptionInput.value.trim(),
     amount: Number(elements.amountInput.value),
     date: elements.dateInput.value,
-    category: elements.categoryInput.value,
+    category: group,
     notes: elements.notesInput.value.trim(),
   };
 
-  if (!expense.description || !expense.date || !expense.category || expense.amount <= 0) {
+  if (!transaction.description || !transaction.date || !transaction.category || transaction.amount <= 0) {
     return;
   }
 
-  const existingIndex = state.expenses.findIndex((item) => item.id === expense.id);
-  if (existingIndex >= 0) {
-    state.expenses[existingIndex] = expense;
+  if (state.mode === "cash-in") {
+    upsertTransaction(state.cashIns, transaction);
+    saveCashIns();
   } else {
-    state.expenses.unshift(expense);
+    upsertTransaction(state.expenses, transaction);
+    saveExpenses();
   }
 
-  saveExpenses();
   resetForm();
   render();
 }
 
-function handleTableClick(event) {
+function upsertTransaction(collection, transaction) {
+  const existingIndex = collection.findIndex((item) => item.id === transaction.id);
+  if (existingIndex >= 0) {
+    collection[existingIndex] = transaction;
+  } else {
+    collection.unshift(transaction);
+  }
+}
+
+function resolveSelectedGroup() {
+  if (elements.categoryInput.value !== CUSTOM_GROUP_VALUE) {
+    return elements.categoryInput.value;
+  }
+
+  const name = elements.customGroupInput.value.trim();
+  if (!name) {
+    return "";
+  }
+
+  ensureGroup(name);
+  return name;
+}
+
+function handleExpenseTableClick(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) {
     return;
@@ -150,7 +241,7 @@ function handleTableClick(event) {
   }
 
   if (button.dataset.action === "edit") {
-    editExpense(expense);
+    editTransaction(expense, "expense");
   }
 
   if (button.dataset.action === "delete") {
@@ -160,56 +251,80 @@ function handleTableClick(event) {
   }
 }
 
-function editExpense(expense) {
-  elements.expenseId.value = expense.id;
-  elements.descriptionInput.value = expense.description;
-  elements.amountInput.value = expense.amount;
-  elements.dateInput.value = expense.date;
-  elements.categoryInput.value = expense.category;
-  elements.notesInput.value = expense.notes || "";
-  elements.formTitle.textContent = "Edit Expense";
+function handleCashInTableClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) {
+    return;
+  }
+
+  const cashIn = state.cashIns.find((item) => item.id === button.dataset.id);
+  if (!cashIn) {
+    return;
+  }
+
+  if (button.dataset.action === "edit") {
+    editTransaction(cashIn, "cash-in");
+  }
+
+  if (button.dataset.action === "delete") {
+    state.cashIns = state.cashIns.filter((item) => item.id !== cashIn.id);
+    saveCashIns();
+    render();
+  }
+}
+
+function editTransaction(transaction, mode) {
+  setMode(mode);
+  ensureGroup(transaction.category);
+  populateGroupControls();
+  elements.categoryInput.value = transaction.category;
+  elements.expenseId.value = transaction.id;
+  elements.descriptionInput.value = transaction.description;
+  elements.amountInput.value = transaction.amount;
+  elements.dateInput.value = transaction.date;
+  elements.notesInput.value = transaction.notes || "";
+  elements.formTitle.textContent = mode === "cash-in" ? "Edit Cash In" : "Edit Expense";
   elements.submitButton.innerHTML = `<i data-lucide="save" aria-hidden="true"></i> Save Changes`;
   elements.cancelEditButton.classList.remove("hidden");
   elements.descriptionInput.focus();
-
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
+  toggleCustomGroup();
+  refreshIcons();
 }
 
 function resetForm() {
   elements.form.reset();
   elements.expenseId.value = "";
   elements.dateInput.valueAsDate = new Date();
-  elements.formTitle.textContent = "Add Expense";
-  elements.submitButton.innerHTML = `<i data-lucide="plus" aria-hidden="true"></i> Add Expense`;
-  elements.cancelEditButton.classList.add("hidden");
-
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
+  elements.customGroupField.classList.add("hidden");
+  elements.customGroupInput.required = false;
+  populateGroupControls();
+  setMode(state.mode);
 }
 
 function render() {
-  const monthExpenses = expensesForMonth(state.filters.month);
-  const totalsByCategory = groupByCategory(monthExpenses);
-  const total = sum(monthExpenses);
-  const daysInMonth = getDaysInMonth(state.filters.month);
-  const topCategory = Object.entries(totalsByCategory).sort((a, b) => b[1] - a[1])[0];
+  const weeklyExpenses = expensesForWeek(state.filters.week);
+  const weeklyCashIns = cashInsForWeek(state.filters.week);
+  const totalExpenses = sum(state.expenses);
+  const totalCashIn = sum(state.cashIns);
+  const groupSummaries = getGroupSummaries();
+  const activeGroupCount = groupSummaries.filter((group) => group.allocated > 0 || group.spent > 0).length;
 
-  elements.monthTotal.textContent = formatCurrency(total);
-  elements.dailyAverage.textContent = formatCurrency(total / daysInMonth);
-  elements.topCategory.textContent = topCategory ? topCategory[0] : "None";
-  elements.transactionCount.textContent = String(monthExpenses.length);
+  elements.weekTotal.textContent = formatCurrency(sum(weeklyExpenses));
+  elements.cashInTotal.textContent = formatCurrency(sum(weeklyCashIns));
+  elements.runningBalance.textContent = formatCurrency(totalCashIn - totalExpenses);
+  elements.activeGroups.textContent = String(activeGroupCount);
 
   renderTrend();
-  renderCategories(totalsByCategory, total);
+  renderBudgets(groupSummaries);
+  renderDailyBreakdown();
   renderTransactions();
+  renderCashIns();
+  refreshIcons();
 }
 
 function renderTrend() {
-  const months = getLastMonths(6);
-  const totals = months.map((month) => sum(expensesForMonth(month.value)));
+  const weeks = getLastWeeks(6, state.filters.week);
+  const totals = weeks.map((week) => sum(expensesForWeek(week.value)));
   const max = Math.max(...totals, 1);
   const current = totals[totals.length - 1] || 0;
   const previous = totals[totals.length - 2] || 0;
@@ -217,17 +332,17 @@ function renderTrend() {
 
   elements.trendDelta.textContent = previous === 0 && current === 0
     ? "No change"
-    : `${delta >= 0 ? "+" : ""}${Math.round(delta)}% vs last month`;
+    : `${delta >= 0 ? "+" : ""}${Math.round(delta)}% vs last week`;
 
-  elements.trendChart.innerHTML = months.map((month, index) => {
+  elements.trendChart.innerHTML = weeks.map((week, index) => {
     const height = Math.max((totals[index] / max) * 100, totals[index] > 0 ? 6 : 0);
     return `
       <div class="bar-item">
-        <div class="bar-track" title="${month.label}: ${formatCurrency(totals[index])}">
+        <div class="bar-track" title="${week.label}: ${formatCurrency(totals[index])}">
           <div class="bar-fill" style="height: ${height}%"></div>
         </div>
         <div class="bar-label">
-          <span>${month.short}</span>
+          <span>${week.short}</span>
           <strong>${compactCurrency(totals[index])}</strong>
         </div>
       </div>
@@ -235,36 +350,71 @@ function renderTrend() {
   }).join("");
 }
 
-function renderCategories(totalsByCategory, total) {
-  const rows = categories
-    .map((category) => ({
-      ...category,
-      total: totalsByCategory[category.name] || 0,
-    }))
-    .filter((category) => category.total > 0)
-    .sort((a, b) => b.total - a.total);
+function renderBudgets(groupSummaries) {
+  const rows = groupSummaries
+    .filter((group) => group.allocated > 0 || group.spent > 0)
+    .sort((a, b) => b.allocated - a.allocated || b.spent - a.spent);
 
-  elements.categoryBreakdown.innerHTML = rows.length ? rows.map((category) => {
-    const percent = total ? (category.total / total) * 100 : 0;
+  elements.categoryBreakdown.innerHTML = rows.length ? rows.map((group) => {
+    const percent = group.allocated > 0 ? Math.min((group.spent / group.allocated) * 100, 100) : 100;
+    const remainingClass = group.remaining < 0 ? "over-budget" : "";
     return `
-      <div class="category-row">
-        <div class="category-name">
-          <span class="swatch" style="background:${category.color}"></span>
-          <span>${category.name}</span>
+      <div class="budget-row">
+        <div class="category-row">
+          <div class="category-name">
+            <span class="swatch" style="background:${group.color}"></span>
+            <span>${escapeHtml(group.name)}</span>
+          </div>
+          <strong class="${remainingClass}">${formatCurrency(group.remaining)}</strong>
+          <div class="category-bar" aria-label="${escapeAttribute(group.name)} ${Math.round(percent)}%">
+            <span style="width:${percent}%; background:${group.color}"></span>
+          </div>
         </div>
-        <strong>${formatCurrency(category.total)}</strong>
-        <div class="category-bar" aria-label="${category.name} ${Math.round(percent)}%">
-          <span style="width:${percent}%; background:${category.color}"></span>
+        <div class="budget-stats">
+          <span>Allocated <strong>${formatCurrency(group.allocated)}</strong></span>
+          <span>Spent <strong>${formatCurrency(group.spent)}</strong></span>
         </div>
       </div>
     `;
-  }).join("") : `<div class="empty-state"><strong>No category spend</strong><span>Add expenses for this month.</span></div>`;
+  }).join("") : `<div class="empty-state"><strong>No allocations yet</strong><span>Add Cash In and choose a group.</span></div>`;
+}
+
+function renderDailyBreakdown() {
+  const expenses = getFilteredExpenses();
+  const grouped = groupExpensesByDate(expenses);
+
+  elements.dailyBreakdown.innerHTML = grouped.length ? grouped.map(([date, items]) => {
+    const total = sum(items);
+    return `
+      <article class="day-group">
+        <header>
+          <div>
+            <strong>${formatDate(date)}</strong>
+            <span>${items.length} ${items.length === 1 ? "expense" : "expenses"}</span>
+          </div>
+          <strong>${formatCurrency(total)}</strong>
+        </header>
+        <div class="day-items">
+          ${items.map((expense) => {
+            const group = getGroup(expense.category);
+            return `
+              <div class="day-item">
+                <span class="swatch" style="background:${group.color}"></span>
+                <span>${escapeHtml(expense.description)}</span>
+                <strong>${formatCurrency(expense.amount)}</strong>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </article>
+    `;
+  }).join("") : `<div class="empty-state"><strong>No daily expenses</strong><span>Add expenses or adjust the week and group filters.</span></div>`;
 }
 
 function renderTransactions() {
   const filtered = getFilteredExpenses();
   elements.expenseTable.innerHTML = filtered.map((expense) => {
-    const category = categories.find((item) => item.name === expense.category) || categories[categories.length - 1];
+    const group = getGroup(expense.category);
     return `
       <tr>
         <td>
@@ -275,18 +425,18 @@ function renderTransactions() {
         </td>
         <td>
           <span class="chip">
-            <span class="swatch" style="background:${category.color}"></span>
-            ${expense.category}
+            <span class="swatch" style="background:${group.color}"></span>
+            ${escapeHtml(expense.category)}
           </span>
         </td>
         <td>${formatDate(expense.date)}</td>
         <td class="amount-col"><strong>${formatCurrency(expense.amount)}</strong></td>
         <td class="actions-col">
           <div class="row-actions">
-            <button class="icon-button" type="button" data-action="edit" data-id="${expense.id}" aria-label="Edit ${escapeHtml(expense.description)}" title="Edit">
+            <button class="icon-button" type="button" data-action="edit" data-id="${escapeAttribute(expense.id)}" aria-label="Edit ${escapeAttribute(expense.description)}" title="Edit">
               <i data-lucide="pencil" aria-hidden="true"></i>
             </button>
-            <button class="icon-button danger" type="button" data-action="delete" data-id="${expense.id}" aria-label="Delete ${escapeHtml(expense.description)}" title="Delete">
+            <button class="icon-button danger" type="button" data-action="delete" data-id="${escapeAttribute(expense.id)}" aria-label="Delete ${escapeAttribute(expense.description)}" title="Delete">
               <i data-lucide="trash-2" aria-hidden="true"></i>
             </button>
           </div>
@@ -296,65 +446,253 @@ function renderTransactions() {
   }).join("");
 
   elements.emptyState.classList.toggle("hidden", filtered.length > 0);
+  refreshIcons();
+}
 
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
+function renderCashIns() {
+  const filtered = getFilteredCashIns();
+  elements.cashInTable.innerHTML = filtered.map((cashIn) => {
+    const group = getGroup(cashIn.category);
+    return `
+      <tr>
+        <td>
+          <div class="expense-name">
+            <strong>${escapeHtml(cashIn.description)}</strong>
+            ${cashIn.notes ? `<span>${escapeHtml(cashIn.notes)}</span>` : ""}
+          </div>
+        </td>
+        <td>
+          <span class="chip">
+            <span class="swatch" style="background:${group.color}"></span>
+            ${escapeHtml(cashIn.category)}
+          </span>
+        </td>
+        <td>${formatDate(cashIn.date)}</td>
+        <td class="amount-col positive-amount"><strong>${formatCurrency(cashIn.amount)}</strong></td>
+        <td class="actions-col">
+          <div class="row-actions">
+            <button class="icon-button" type="button" data-action="edit" data-id="${escapeAttribute(cashIn.id)}" aria-label="Edit ${escapeAttribute(cashIn.description)}" title="Edit">
+              <i data-lucide="pencil" aria-hidden="true"></i>
+            </button>
+            <button class="icon-button danger" type="button" data-action="delete" data-id="${escapeAttribute(cashIn.id)}" aria-label="Delete ${escapeAttribute(cashIn.description)}" title="Delete">
+              <i data-lucide="trash-2" aria-hidden="true"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  elements.cashInEmptyState.classList.toggle("hidden", filtered.length > 0);
+  refreshIcons();
 }
 
 function getFilteredExpenses() {
   return state.expenses
-    .filter((expense) => !state.filters.month || expense.date.startsWith(state.filters.month))
-    .filter((expense) => state.filters.category === "All" || expense.category === state.filters.category)
-    .filter((expense) => {
-      const haystack = `${expense.description} ${expense.category} ${expense.notes || ""}`.toLowerCase();
-      return !state.filters.search || haystack.includes(state.filters.search);
-    })
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+    .filter((expense) => !state.filters.week || isDateInWeek(expense.date, state.filters.week))
+    .filter((expense) => state.filters.group === "All" || expense.category === state.filters.group)
+    .filter((expense) => matchesSearch(expense))
+    .sort(sortByDateDesc);
 }
 
-function expensesForMonth(month) {
-  return state.expenses.filter((expense) => expense.date.startsWith(month));
+function getFilteredCashIns() {
+  return state.cashIns
+    .filter((cashIn) => !state.filters.week || isDateInWeek(cashIn.date, state.filters.week))
+    .filter((cashIn) => state.filters.group === "All" || cashIn.category === state.filters.group)
+    .filter((cashIn) => matchesSearch(cashIn))
+    .sort(sortByDateDesc);
 }
 
-function groupByCategory(expenses) {
-  return expenses.reduce((totals, expense) => {
-    totals[expense.category] = (totals[expense.category] || 0) + expense.amount;
-    return totals;
+function matchesSearch(transaction) {
+  const haystack = `${transaction.description} ${transaction.category} ${transaction.notes || ""}`.toLowerCase();
+  return !state.filters.search || haystack.includes(state.filters.search);
+}
+
+function expensesForWeek(week) {
+  return state.expenses.filter((expense) => isDateInWeek(expense.date, week));
+}
+
+function cashInsForWeek(week) {
+  return state.cashIns.filter((cashIn) => isDateInWeek(cashIn.date, week));
+}
+
+function getGroupSummaries() {
+  return state.groups.map((group) => {
+    const allocated = sum(state.cashIns.filter((cashIn) => cashIn.category === group.name));
+    const spent = sum(state.expenses.filter((expense) => expense.category === group.name));
+    return {
+      ...group,
+      allocated,
+      spent,
+      remaining: allocated - spent,
+    };
+  });
+}
+
+function groupExpensesByDate(expenses) {
+  const grouped = expenses.reduce((days, expense) => {
+    if (!days[expense.date]) {
+      days[expense.date] = [];
+    }
+    days[expense.date].push(expense);
+    return days;
   }, {});
+
+  return Object.entries(grouped).sort((a, b) => new Date(`${b[0]}T00:00:00`) - new Date(`${a[0]}T00:00:00`));
 }
 
-function sum(expenses) {
-  return expenses.reduce((total, expense) => total + Number(expense.amount), 0);
+function sum(transactions) {
+  return transactions.reduce((total, transaction) => total + Number(transaction.amount), 0);
 }
 
-function exportExpenses() {
-  const payload = JSON.stringify(state.expenses, null, 2);
+function sortByDateDesc(a, b) {
+  return new Date(`${b.date}T00:00:00`) - new Date(`${a.date}T00:00:00`);
+}
+
+function ensureGroup(name) {
+  const normalized = name.trim();
+  if (!normalized) {
+    return;
+  }
+
+  const exists = state.groups.some((group) => group.name.toLowerCase() === normalized.toLowerCase());
+  if (exists) {
+    return;
+  }
+
+  state.groups.push({
+    name: normalized,
+    color: colorPool[state.groups.length % colorPool.length],
+  });
+  saveGroups();
+  populateGroupControls();
+}
+
+function getGroup(name) {
+  const group = state.groups.find((item) => item.name === name);
+  if (group) {
+    return group;
+  }
+
+  ensureGroup(name);
+  return state.groups.find((item) => item.name === name) || defaultGroups[defaultGroups.length - 1];
+}
+
+function exportData() {
+  const payload = JSON.stringify({
+    expenses: state.expenses,
+    cashIns: state.cashIns,
+    groups: state.groups,
+    settings: state.settings,
+  }, null, 2);
   const blob = new Blob([payload], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "faststack-expenses.json";
+  link.download = "faststack-budget-tracker.json";
   link.click();
   URL.revokeObjectURL(url);
 }
 
 function loadExpenses() {
-  const stored = localStorage.getItem(STORAGE_KEY);
+  const stored = localStorage.getItem(EXPENSE_STORAGE_KEY);
   if (!stored) {
     return sampleExpenses;
   }
 
   try {
     const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : sampleExpenses;
+    return Array.isArray(parsed) ? parsed.map(normalizeTransaction) : sampleExpenses;
   } catch {
     return sampleExpenses;
   }
 }
 
+function loadCashIns() {
+  const stored = localStorage.getItem(CASH_IN_STORAGE_KEY);
+  if (!stored) {
+    return sampleCashIns;
+  }
+
+  try {
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed.map(normalizeTransaction) : sampleCashIns;
+  } catch {
+    return sampleCashIns;
+  }
+}
+
+function loadGroups() {
+  const stored = localStorage.getItem(GROUP_STORAGE_KEY);
+  const storedGroups = safeParseArray(stored).map(normalizeGroup);
+  const transactionGroups = [...state.expenses, ...state.cashIns]
+    .map((transaction) => transaction.category)
+    .filter(Boolean)
+    .map((name, index) => ({ name, color: colorPool[index % colorPool.length] }));
+
+  return dedupeGroups([...defaultGroups, ...storedGroups, ...transactionGroups]);
+}
+
+function safeParseArray(value) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeTransaction(transaction) {
+  return {
+    id: transaction.id || createId("transaction"),
+    description: transaction.description || "Untitled",
+    amount: Number(transaction.amount) || 0,
+    category: transaction.category || transaction.group || "Other",
+    date: transaction.date || toDateInputValue(new Date()),
+    notes: transaction.notes || "",
+  };
+}
+
+function normalizeGroup(group, index = 0) {
+  if (typeof group === "string") {
+    return {
+      name: group,
+      color: colorPool[index % colorPool.length],
+    };
+  }
+
+  return {
+    name: group.name || "Other",
+    color: group.color || colorPool[index % colorPool.length],
+  };
+}
+
+function dedupeGroups(groups) {
+  const byName = new Map();
+  groups.forEach((group, index) => {
+    const normalized = normalizeGroup(group, index);
+    const key = normalized.name.toLowerCase();
+    if (!byName.has(key)) {
+      byName.set(key, normalized);
+    }
+  });
+  return Array.from(byName.values());
+}
+
 function saveExpenses() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.expenses));
+  localStorage.setItem(EXPENSE_STORAGE_KEY, JSON.stringify(state.expenses));
+}
+
+function saveCashIns() {
+  localStorage.setItem(CASH_IN_STORAGE_KEY, JSON.stringify(state.cashIns));
+}
+
+function saveGroups() {
+  localStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify(state.groups));
 }
 
 function loadSettings() {
@@ -377,7 +715,7 @@ function saveSettings() {
 
 function createExpense(description, amount, category, date, notes) {
   return {
-    id: createId(),
+    id: createId("expense"),
     description,
     amount,
     category,
@@ -386,12 +724,23 @@ function createExpense(description, amount, category, date, notes) {
   };
 }
 
-function createId() {
+function createCashIn(description, amount, category, date, notes) {
+  return {
+    id: createId("cash-in"),
+    description,
+    amount,
+    category,
+    date,
+    notes,
+  };
+}
+
+function createId(prefix) {
   if (window.crypto && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
+    return `${prefix}-${window.crypto.randomUUID()}`;
   }
 
-  return `expense-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function daysAgo(days) {
@@ -400,31 +749,61 @@ function daysAgo(days) {
   return toDateInputValue(date);
 }
 
-function getCurrentMonth() {
-  return toDateInputValue(new Date()).slice(0, 7);
+function getCurrentWeek() {
+  return getWeekValue(new Date());
 }
 
-function getLastMonths(count) {
-  const formatter = new Intl.DateTimeFormat("en", { month: "short", year: "numeric" });
-  const months = [];
-  const date = new Date();
-  date.setDate(1);
+function getLastWeeks(count, anchorWeek) {
+  const weeks = [];
+  const currentStart = getWeekStartFromValue(anchorWeek || getCurrentWeek());
 
   for (let index = count - 1; index >= 0; index -= 1) {
-    const monthDate = new Date(date.getFullYear(), date.getMonth() - index, 1);
-    months.push({
-      value: toDateInputValue(monthDate).slice(0, 7),
-      label: formatter.format(monthDate),
-      short: new Intl.DateTimeFormat("en", { month: "short" }).format(monthDate),
+    const start = addDays(currentStart, index * -7);
+    const end = addDays(start, 6);
+    const value = getWeekValue(start);
+    weeks.push({
+      value,
+      label: `${formatShortDate(start)} - ${formatShortDate(end)}`,
+      short: value.replace("-", " "),
     });
   }
 
-  return months;
+  return weeks;
 }
 
-function getDaysInMonth(month) {
-  const [year, monthIndex] = month.split("-").map(Number);
-  return new Date(year, monthIndex, 0).getDate();
+function isDateInWeek(dateValue, weekValue) {
+  const start = getWeekStartFromValue(weekValue);
+  const end = addDays(start, 7);
+  const date = new Date(`${dateValue}T00:00:00`);
+  return date >= start && date < end;
+}
+
+function getWeekStartFromValue(weekValue) {
+  const [yearPart, weekPart] = weekValue.split("-W");
+  const year = Number(yearPart);
+  const week = Number(weekPart);
+  const jan4 = new Date(year, 0, 4);
+  const jan4Day = (jan4.getDay() + 6) % 7;
+  const weekOneMonday = new Date(year, 0, 4 - jan4Day);
+  return addDays(weekOneMonday, (week - 1) * 7);
+}
+
+function getWeekValue(date) {
+  const normalized = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = (normalized.getDay() + 6) % 7;
+  const thursday = addDays(normalized, 3 - day);
+  const weekYear = thursday.getFullYear();
+  const firstThursday = new Date(weekYear, 0, 4);
+  const firstDay = (firstThursday.getDay() + 6) % 7;
+  const firstWeekThursday = addDays(firstThursday, 3 - firstDay);
+  const weekNumber = 1 + Math.round((thursday - firstWeekThursday) / 604800000);
+  return `${weekYear}-W${String(weekNumber).padStart(2, "0")}`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
 }
 
 function toDateInputValue(date) {
@@ -438,7 +817,7 @@ function formatCurrency(value) {
   return new Intl.NumberFormat("en", {
     style: "currency",
     currency: state.settings.currency,
-    maximumFractionDigits: value >= 1000 ? 0 : 2,
+    maximumFractionDigits: Math.abs(value) >= 1000 ? 0 : 2,
   }).format(value || 0);
 }
 
@@ -459,6 +838,13 @@ function formatDate(value) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
+function formatShortDate(date) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -466,4 +852,14 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
+}
+
+function refreshIcons() {
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
 }

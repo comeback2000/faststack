@@ -435,6 +435,26 @@ p {
   cursor: pointer;
 }
 
+.license-actions .light-button:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.form-message {
+  min-height: 22px;
+  margin: 0;
+  color: #d9fff5;
+  font-weight: 800;
+}
+
+.form-message.success {
+  color: #bff7d2;
+}
+
+.form-message.error {
+  color: #fecaca;
+}
+
 .guide-link {
   display: inline-flex;
   gap: 8px;

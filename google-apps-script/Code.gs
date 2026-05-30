@@ -17,6 +17,7 @@ const FASTSTACK_BACKUP_RETENTION_DAYS = 30;
 const FASTSTACK_BACKUP_FOLDER_NAME = "FastStack Expense Tracker Backups";
 const FASTSTACK_BACKUP_PREFIX = "FastStack Expense Tracker Backup - ";
 const FASTSTACK_FRONTEND_URL = "https://comeback2000.github.io/faststack/";
+const FASTSTACK_CONTACT_EMAIL = "ranjancom2000@gmail.com";
 const FASTSTACK_PROPERTIES = {
   SPREADSHEET_ID: "FASTSTACK_SPREADSHEET_ID",
   APP_SECRET: "FASTSTACK_APP_SECRET",
@@ -208,6 +209,8 @@ function handleApiRequest_(request) {
     data = requestPasswordReset_(request);
   } else if (action === "resetPassword") {
     data = resetPassword_(request);
+  } else if (action === "contactInquiry") {
+    data = contactInquiry_(request);
   } else if (action === "logout") {
     data = logout_(request);
   } else {
@@ -240,6 +243,49 @@ function handleApiRequest_(request) {
   }
 
   return { ok: true, data: data };
+}
+
+function contactInquiry_(request) {
+  rateLimitAction_("contactInquiry", String(request.email || request.sourceUrl || "anonymous"), 10, 3600);
+
+  const name = sanitizeText_(request.name, 120, "Name");
+  const company = sanitizeText_(request.company, 160, "Company name");
+  const email = validateEmail_(request.email);
+  const website = sanitizeOptionalText_(request.website, 220);
+  const subject = sanitizeText_(request.subject || "FastStack Inquiry", 160, "Subject");
+  const message = sanitizeText_(request.message, 4000, "Message");
+  const sourceUrl = sanitizeOptionalText_(request.sourceUrl, 500);
+  const userAgent = sanitizeOptionalText_(request.userAgent, 500);
+  const sentAt = Utilities.formatDate(new Date(), FASTSTACK_TIME_ZONE, "yyyy-MM-dd HH:mm:ss z");
+
+  const body = [
+    "FastStack website inquiry",
+    "",
+    "Submitted At: " + sentAt,
+    "Name: " + name,
+    "Company Name: " + company,
+    "Email Address: " + email,
+    "Website / Domain: " + (website || "Not provided"),
+    "Subject: " + subject,
+    "",
+    "Message:",
+    message,
+    "",
+    "Source URL: " + (sourceUrl || "Not provided"),
+    "User Agent: " + (userAgent || "Not provided"),
+  ].join("\n");
+
+  MailApp.sendEmail({
+    to: FASTSTACK_CONTACT_EMAIL,
+    replyTo: email,
+    subject: "[FastStack] " + subject,
+    body: body,
+    name: "FastStack Website",
+  });
+
+  return {
+    message: "Inquiry sent successfully.",
+  };
 }
 
 function register_(request) {
@@ -1262,6 +1308,17 @@ function sanitizeText_(value, maxLength, label) {
   }
   if (clean.length > maxLength) {
     throw new Error(label + " is too long.");
+  }
+  if (/^[=+\-@]/.test(clean)) {
+    return "'" + clean;
+  }
+  return clean;
+}
+
+function sanitizeOptionalText_(value, maxLength) {
+  const clean = String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim();
+  if (clean.length > maxLength) {
+    throw new Error("Input is too long.");
   }
   if (/^[=+\-@]/.test(clean)) {
     return "'" + clean;

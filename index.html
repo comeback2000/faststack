@@ -9,10 +9,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=ledger-edit-1">
+    <link rel="stylesheet" href="styles.css?v=pages-shell-1">
     <script src="config.js?v=google-sheets-v10"></script>
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script defer src="app.js?v=ledger-edit-1"></script>
+    <script defer src="app.js?v=pages-shell-1"></script>
   </head>
   <body>
     <section class="login-screen" id="loginScreen" aria-label="Account access">
@@ -113,69 +113,204 @@
     </section>
 
     <main class="app-shell hidden" id="appShell">
-      <section class="topbar" aria-label="Expense overview">
-        <div>
-          <p class="eyebrow">Personal Expense Tracker</p>
-          <h1>FastStack Spend Dashboard</h1>
+      <aside class="side-nav" aria-label="Main navigation">
+        <div class="brand-block">
+          <div class="brand-mark">F</div>
+          <strong>FastStack<br>Spend</strong>
         </div>
-        <div class="toolbar">
-          <label class="field compact">
-            <span>Currency</span>
-            <select id="currencySelect" aria-label="Currency">
-              <option value="USD">USD</option>
-              <option value="INR">INR</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-            </select>
-          </label>
-          <button class="ghost-button" id="exportButton" type="button">
-            <i data-lucide="download" aria-hidden="true"></i>
-            JSON
+        <nav class="nav-list">
+          <button class="nav-button active" type="button" data-page-target="dashboard">
+            <i data-lucide="home" aria-hidden="true"></i>
+            Dashboard
           </button>
-          <button class="ghost-button" id="pdfExportButton" type="button">
+          <button class="nav-button" type="button" data-page-target="projects">
+            <i data-lucide="briefcase" aria-hidden="true"></i>
+            Projects
+          </button>
+          <button class="nav-button" type="button" data-page-target="transactions">
+            <i data-lucide="list" aria-hidden="true"></i>
+            Transactions
+          </button>
+          <button class="nav-button" type="button" data-page-target="reports">
             <i data-lucide="file-text" aria-hidden="true"></i>
-            PDF
+            Reports
           </button>
-          <button class="ghost-button" id="logoutButton" type="button">
-            <i data-lucide="log-out" aria-hidden="true"></i>
-            Logout
+          <button class="nav-button" type="button" data-page-target="analytics">
+            <i data-lucide="chart-column" aria-hidden="true"></i>
+            Analytics
           </button>
-        </div>
-      </section>
+          <button class="nav-button" type="button" data-page-target="settings">
+            <i data-lucide="settings" aria-hidden="true"></i>
+            Settings
+          </button>
+        </nav>
+        <button class="nav-button logout-nav" id="logoutButton" type="button">
+          <i data-lucide="log-out" aria-hidden="true"></i>
+          Logout
+        </button>
+      </aside>
 
-      <section class="summary-grid hidden" aria-label="Spending summary">
-        <article class="metric-card">
-          <div class="metric-icon mint"><i data-lucide="wallet-cards" aria-hidden="true"></i></div>
-          <div>
-            <span>Weekly Spend</span>
-            <strong id="weekTotal">$0</strong>
+      <section class="app-main">
+        <header class="page-topbar">
+          <h1 id="pageTitle">Dashboard</h1>
+          <div class="toolbar">
+            <label class="field compact">
+              <span>Currency</span>
+              <select id="currencySelect" aria-label="Currency">
+                <option value="USD">USD</option>
+                <option value="INR">INR</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+              </select>
+            </label>
+            <button class="icon-button" type="button" aria-label="Notifications" title="Notifications">
+              <i data-lucide="bell" aria-hidden="true"></i>
+            </button>
+            <div class="user-avatar" id="userAvatar">R</div>
           </div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-icon coral"><i data-lucide="arrow-down-to-line" aria-hidden="true"></i></div>
-          <div>
-            <span>Cash In</span>
-            <strong id="cashInTotal">$0</strong>
-          </div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-icon gold"><i data-lucide="scale" aria-hidden="true"></i></div>
-          <div>
-            <span>Running Balance</span>
-            <strong id="runningBalance">$0</strong>
-          </div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-icon blue"><i data-lucide="receipt-text" aria-hidden="true"></i></div>
-          <div>
-            <span>Active Groups</span>
-            <strong id="activeGroups">0</strong>
-          </div>
-        </article>
-      </section>
+        </header>
 
-      <section class="workspace">
-        <aside class="panel entry-panel" aria-label="Transaction form">
+        <section class="app-page active" id="dashboardPage" data-page="dashboard" aria-label="Dashboard">
+          <section class="summary-grid" aria-label="Spending summary">
+            <article class="metric-card">
+              <div class="metric-icon mint"><i data-lucide="briefcase" aria-hidden="true"></i></div>
+              <div>
+                <span>Total Projects</span>
+                <strong id="activeGroups">0</strong>
+                <small>Active Projects</small>
+              </div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-icon coral"><i data-lucide="arrow-down-to-line" aria-hidden="true"></i></div>
+              <div>
+                <span>Total Cash In</span>
+                <strong id="cashInTotal">$0</strong>
+                <small>All Projects</small>
+              </div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-icon gold"><i data-lucide="receipt-text" aria-hidden="true"></i></div>
+              <div>
+                <span>Total Cash Out</span>
+                <strong id="weekTotal">$0</strong>
+                <small>All Projects</small>
+              </div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-icon blue"><i data-lucide="scale" aria-hidden="true"></i></div>
+              <div>
+                <span>Net Balance</span>
+                <strong id="runningBalance">$0</strong>
+                <small>All Projects</small>
+              </div>
+            </article>
+          </section>
+
+          <section class="dashboard-grid">
+            <article class="panel">
+              <div class="panel-heading inline-heading">
+                <h2>Recent Transactions</h2>
+                <button class="text-button" type="button" data-page-link="transactions">View all</button>
+              </div>
+              <div class="compact-list" id="recentTransactionsList"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading inline-heading">
+                <h2>Top Projects by Balance</h2>
+                <button class="text-button" type="button" data-page-link="projects">View all</button>
+              </div>
+              <div class="project-rank-list" id="topProjectsList"></div>
+            </article>
+          </section>
+
+          <section class="quick-actions">
+            <button class="primary-button" id="quickCashInButton" type="button">
+              <i data-lucide="plus" aria-hidden="true"></i>
+              Cash In
+            </button>
+            <button class="ghost-button" id="quickCashOutButton" type="button">
+              <i data-lucide="minus" aria-hidden="true"></i>
+              Cash Out
+            </button>
+            <button class="ghost-button" id="quickProjectButton" type="button">
+              <i data-lucide="plus" aria-hidden="true"></i>
+              Add Project
+            </button>
+            <button class="ghost-button" id="dashboardPdfButton" type="button">
+              <i data-lucide="download" aria-hidden="true"></i>
+              Download PDF
+            </button>
+          </section>
+        </section>
+
+        <section class="app-page" id="projectsPage" data-page="projects" aria-label="Projects">
+          <div class="page-actions">
+            <div class="tab-row">
+              <button class="tab-button active" type="button">All <span id="projectAllCount">(0)</span></button>
+              <button class="tab-button" type="button">Active <span id="projectActiveCount">(0)</span></button>
+              <button class="tab-button" type="button">Closed (0)</button>
+            </div>
+            <div class="filters">
+              <label class="field compact search-field">
+                <span>Search</span>
+                <input id="projectSearchInput" type="search" placeholder="Search projects...">
+              </label>
+              <button class="primary-button" id="projectAddButton" type="button">
+                <i data-lucide="plus" aria-hidden="true"></i>
+                Add Project
+              </button>
+            </div>
+          </div>
+          <section class="panel">
+            <div class="table-wrap">
+              <table class="projects-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Project Name</th>
+                    <th scope="col" class="amount-col">Cash In</th>
+                    <th scope="col" class="amount-col">Cash Out</th>
+                    <th scope="col" class="amount-col">Balance</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="actions-col">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="projectTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="app-page" id="transactionsPage" data-page="transactions" aria-label="Transactions">
+          <div class="page-actions">
+            <div class="filters">
+              <label class="field compact">
+                <span>Project</span>
+                <select id="categoryFilter"></select>
+              </label>
+              <label class="field compact">
+                <span>Type</span>
+                <select id="transactionTypeFilter">
+                  <option value="All">All Types</option>
+                  <option value="cash-in">Cash In</option>
+                  <option value="expense">Cash Out</option>
+                </select>
+              </label>
+              <label class="field compact search-field">
+                <span>Search</span>
+                <input id="searchInput" type="search" placeholder="Search entries">
+              </label>
+              <label class="field compact">
+                <span>Week</span>
+                <input id="weekFilter" type="week">
+              </label>
+            </div>
+            <button class="primary-button" id="transactionAddButton" type="button">
+              <i data-lucide="plus" aria-hidden="true"></i>
+              Add Transaction
+            </button>
+          </div>
+          <section class="workspace page-workspace">
+            <aside class="panel entry-panel" aria-label="Transaction form">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Transaction</p>
@@ -235,42 +370,74 @@
             </button>
             <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
           </form>
-        </aside>
-
-        <section class="dashboard-stack">
-          <div class="analytics-grid hidden">
-            <article class="panel chart-panel">
-              <div class="panel-heading">
-                <div>
-                  <p class="eyebrow">Trend</p>
-                  <h2>Weekly Spending</h2>
-                </div>
-                <span id="trendDelta" class="status-pill">No change</span>
+            </aside>
+            <section class="panel table-panel">
+              <div class="table-wrap">
+                <table class="ledger-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Date / Time</th>
+                      <th scope="col">Project</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Description</th>
+                      <th scope="col" class="amount-col">Cash In</th>
+                      <th scope="col" class="amount-col">Cash Out</th>
+                      <th scope="col" class="amount-col">Balance</th>
+                      <th scope="col" class="actions-col">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="allTransactionsTable"></tbody>
+                </table>
               </div>
-              <div id="trendChart" class="bar-chart" aria-label="Weekly spending trend"></div>
-            </article>
+              <p class="table-note" id="transactionCountLabel">Showing 0 transactions</p>
+            </section>
+          </section>
+        </section>
 
-            <article class="panel category-panel">
-              <div class="panel-heading">
-                <div>
-                  <p class="eyebrow">Budgets</p>
-                  <h2>Allocation</h2>
-                </div>
-              </div>
-              <div id="categoryBreakdown" class="category-list"></div>
-            </article>
+        <section class="app-page" id="reportsPage" data-page="reports" aria-label="Reports">
+          <div class="tab-row report-tabs">
+            <button class="tab-button active" type="button">Project Summary</button>
+            <button class="tab-button" type="button">Cash Flow</button>
+            <button class="tab-button" type="button">Daily Report</button>
+            <button class="tab-button" type="button">Monthly Report</button>
           </div>
-
-          <section class="panel group-sheet-panel" aria-label="Group balance sheet">
-            <div class="panel-heading transaction-heading">
-              <div>
-                <p class="eyebrow">Group Sheet</p>
-                <h2>Balance by Group</h2>
-              </div>
+          <section class="panel report-panel">
+            <div class="filters report-filter-row">
               <label class="field compact">
-                <span>Project Name</span>
+                <span>Select Project</span>
                 <select id="projectGroupSelect" aria-label="Project Name"></select>
               </label>
+              <label class="field compact">
+                <span>From Date</span>
+                <input id="reportFromDate" type="date">
+              </label>
+              <label class="field compact">
+                <span>To Date</span>
+                <input id="reportToDate" type="date">
+              </label>
+              <button class="primary-button" id="generateReportButton" type="button">
+                <i data-lucide="plus" aria-hidden="true"></i>
+                Generate Report
+              </button>
+            </div>
+
+            <div class="report-metrics">
+              <article class="metric-card compact-metric">
+                <span>Cash In</span>
+                <strong id="reportCashIn">$0</strong>
+              </article>
+              <article class="metric-card compact-metric danger-metric">
+                <span>Cash Out</span>
+                <strong id="reportCashOut">$0</strong>
+              </article>
+              <article class="metric-card compact-metric">
+                <span>Net Balance</span>
+                <strong id="reportBalance">$0</strong>
+              </article>
+              <article class="metric-card compact-metric info-metric">
+                <span>Transactions</span>
+                <strong id="reportTransactionCount">0</strong>
+              </article>
             </div>
 
             <div class="sheet-meta">
@@ -312,9 +479,58 @@
                 <span>Add Cash In or Expense entries for the selected project.</span>
               </div>
             </div>
-          </section>
 
-          <section class="panel daily-panel hidden" aria-label="Daily expense breakdown">
+            <div class="report-actions">
+              <span>Download as:</span>
+              <button class="primary-button" id="pdfExportButton" type="button">
+                <i data-lucide="file-text" aria-hidden="true"></i>
+                PDF
+              </button>
+              <button class="ghost-button" id="exportButton" type="button">
+                <i data-lucide="download" aria-hidden="true"></i>
+                Excel
+              </button>
+            </div>
+          </section>
+        </section>
+
+        <section class="app-page" id="analyticsPage" data-page="analytics" aria-label="Analytics">
+          <div class="page-actions">
+            <div></div>
+            <div class="filters">
+              <label class="field compact">
+                <span>Project</span>
+                <select id="analyticsProjectFilter"></select>
+              </label>
+              <label class="field compact">
+                <span>Week</span>
+                <input id="analyticsWeekFilter" type="week">
+              </label>
+            </div>
+          </div>
+          <div class="analytics-grid">
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Trend</p>
+                  <h2>Weekly Spending</h2>
+                </div>
+                <span id="trendDelta" class="status-pill">No change</span>
+              </div>
+              <div id="trendChart" class="bar-chart" aria-label="Weekly spending trend"></div>
+            </article>
+
+            <article class="panel category-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Budgets</p>
+                  <h2>Allocation</h2>
+                </div>
+              </div>
+              <div id="categoryBreakdown" class="category-list"></div>
+            </article>
+          </div>
+          <section class="panel daily-panel" aria-label="Daily expense breakdown">
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">Daily View</p>
@@ -323,77 +539,16 @@
             </div>
             <div id="dailyBreakdown" class="daily-breakdown"></div>
           </section>
+        </section>
 
-          <section class="panel transactions-panel hidden" aria-label="Expense transactions">
-            <div class="panel-heading transaction-heading">
-              <div>
-                <p class="eyebrow">Ledger</p>
-                <h2>Expenses</h2>
-              </div>
-              <div class="filters">
-                <label class="field compact search-field">
-                  <span>Search</span>
-                  <input id="searchInput" type="search" placeholder="Search entries">
-                </label>
-                <label class="field compact">
-                  <span>Week</span>
-                  <input id="weekFilter" type="week">
-                </label>
-                <label class="field compact">
-                  <span>Group</span>
-                  <select id="categoryFilter"></select>
-                </label>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Expense</th>
-                    <th scope="col">Group</th>
-                    <th scope="col">Date</th>
-                    <th scope="col" class="amount-col">Amount</th>
-                    <th scope="col" class="actions-col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="expenseTable"></tbody>
-              </table>
-              <div id="emptyState" class="empty-state hidden">
-                <i data-lucide="clipboard-list" aria-hidden="true"></i>
-                <strong>No expenses found</strong>
-                <span>Add a transaction or adjust the filters.</span>
-              </div>
-            </div>
-          </section>
-
-          <section class="panel transactions-panel hidden" aria-label="Cash in entries">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">Funding</p>
-                <h2>Cash In</h2>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table class="cash-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Cash In</th>
-                    <th scope="col">Group</th>
-                    <th scope="col">Date</th>
-                    <th scope="col" class="amount-col">Amount</th>
-                    <th scope="col" class="actions-col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="cashInTable"></tbody>
-              </table>
-              <div id="cashInEmptyState" class="empty-state hidden">
-                <i data-lucide="circle-dollar-sign" aria-hidden="true"></i>
-                <strong>No cash in found</strong>
-                <span>Add funds and allocate them to a group.</span>
-              </div>
-            </div>
-          </section>
-
+        <section class="app-page" id="settingsPage" data-page="settings" aria-label="Settings">
+          <div class="tab-row report-tabs">
+            <button class="tab-button active" type="button">Profile</button>
+            <button class="tab-button" type="button">Security</button>
+            <button class="tab-button" type="button">Preferences</button>
+            <button class="tab-button" type="button">Google Sheets</button>
+            <button class="tab-button" type="button">Backup</button>
+          </div>
           <section class="management-grid" aria-label="Record management">
             <section class="panel management-panel" aria-label="Category management">
               <div class="panel-heading">

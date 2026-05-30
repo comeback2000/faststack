@@ -24,6 +24,7 @@ const state = {
   groups: [],
   settings: loadSettings(),
   mode: "expense",
+  page: "dashboard",
   dashboardBooted: false,
   user: null,
   token: null,
@@ -31,6 +32,8 @@ const state = {
     search: "",
     week: getCurrentWeek(),
     group: "All",
+    type: "All",
+    projectSearch: "",
   },
 };
 
@@ -59,6 +62,11 @@ const elements = {
   forgotPasswordButton: document.querySelector("#forgotPasswordButton"),
   backToLoginFromResetButton: document.querySelector("#backToLoginFromResetButton"),
   loginMessage: document.querySelector("#loginMessage"),
+  navButtons: document.querySelectorAll("[data-page-target]"),
+  pageLinks: document.querySelectorAll("[data-page-link]"),
+  appPages: document.querySelectorAll("[data-page]"),
+  pageTitle: document.querySelector("#pageTitle"),
+  userAvatar: document.querySelector("#userAvatar"),
   currencySelect: document.querySelector("#currencySelect"),
   exportButton: document.querySelector("#exportButton"),
   pdfExportButton: document.querySelector("#pdfExportButton"),
@@ -100,6 +108,30 @@ const elements = {
   cashInTable: document.querySelector("#cashInTable"),
   emptyState: document.querySelector("#emptyState"),
   cashInEmptyState: document.querySelector("#cashInEmptyState"),
+  recentTransactionsList: document.querySelector("#recentTransactionsList"),
+  topProjectsList: document.querySelector("#topProjectsList"),
+  quickCashInButton: document.querySelector("#quickCashInButton"),
+  quickCashOutButton: document.querySelector("#quickCashOutButton"),
+  quickProjectButton: document.querySelector("#quickProjectButton"),
+  dashboardPdfButton: document.querySelector("#dashboardPdfButton"),
+  projectSearchInput: document.querySelector("#projectSearchInput"),
+  projectAddButton: document.querySelector("#projectAddButton"),
+  projectTable: document.querySelector("#projectTable"),
+  projectAllCount: document.querySelector("#projectAllCount"),
+  projectActiveCount: document.querySelector("#projectActiveCount"),
+  transactionTypeFilter: document.querySelector("#transactionTypeFilter"),
+  transactionAddButton: document.querySelector("#transactionAddButton"),
+  allTransactionsTable: document.querySelector("#allTransactionsTable"),
+  transactionCountLabel: document.querySelector("#transactionCountLabel"),
+  reportFromDate: document.querySelector("#reportFromDate"),
+  reportToDate: document.querySelector("#reportToDate"),
+  generateReportButton: document.querySelector("#generateReportButton"),
+  reportCashIn: document.querySelector("#reportCashIn"),
+  reportCashOut: document.querySelector("#reportCashOut"),
+  reportBalance: document.querySelector("#reportBalance"),
+  reportTransactionCount: document.querySelector("#reportTransactionCount"),
+  analyticsProjectFilter: document.querySelector("#analyticsProjectFilter"),
+  analyticsWeekFilter: document.querySelector("#analyticsWeekFilter"),
   groupForm: document.querySelector("#groupForm"),
   groupOriginalName: document.querySelector("#groupOriginalName"),
   groupNameInput: document.querySelector("#groupNameInput"),
@@ -172,6 +204,8 @@ async function bootDashboard() {
   populateGroupControls();
   elements.currencySelect.value = state.settings.currency;
   elements.weekFilter.value = state.filters.week;
+  elements.analyticsWeekFilter.value = state.filters.week;
+  setDefaultReportDates();
   setCurrentISTDateTime();
   if (!state.dashboardBooted) {
     bindEvents();
@@ -216,6 +250,12 @@ function bindAuthEvents() {
 }
 
 function bindEvents() {
+  elements.navButtons.forEach((button) => {
+    button.addEventListener("click", () => setActivePage(button.dataset.pageTarget));
+  });
+  elements.pageLinks.forEach((button) => {
+    button.addEventListener("click", () => setActivePage(button.dataset.pageLink));
+  });
   elements.form.addEventListener("submit", handleSubmit);
   elements.groupForm.addEventListener("submit", handleGroupSubmit);
   elements.cancelGroupEditButton.addEventListener("click", resetGroupForm);
@@ -233,13 +273,33 @@ function bindEvents() {
   });
   elements.exportButton.addEventListener("click", exportData);
   elements.pdfExportButton.addEventListener("click", exportPdfReport);
+  elements.dashboardPdfButton.addEventListener("click", exportPdfReport);
+  elements.quickCashInButton.addEventListener("click", () => startTransaction("cash-in"));
+  elements.quickCashOutButton.addEventListener("click", () => startTransaction("expense"));
+  elements.quickProjectButton.addEventListener("click", () => {
+    setActivePage("projects");
+    elements.groupNameInput.focus();
+  });
+  elements.projectAddButton.addEventListener("click", () => {
+    setActivePage("settings");
+    elements.groupNameInput.focus();
+  });
+  elements.transactionAddButton.addEventListener("click", () => startTransaction("expense"));
+  elements.projectSearchInput.addEventListener("input", () => {
+    state.filters.projectSearch = elements.projectSearchInput.value.trim().toLowerCase();
+    renderProjectsPage();
+  });
+  elements.projectTable.addEventListener("click", handleProjectTableClick);
+  elements.allTransactionsTable.addEventListener("click", handleAllTransactionsClick);
   elements.searchInput.addEventListener("input", () => {
     state.filters.search = elements.searchInput.value.trim().toLowerCase();
     renderTransactions();
     renderCashIns();
+    renderAllTransactions();
   });
   elements.weekFilter.addEventListener("change", () => {
     state.filters.week = elements.weekFilter.value || getCurrentWeek();
+    elements.analyticsWeekFilter.value = state.filters.week;
     render();
   });
   elements.categoryFilter.addEventListener("change", () => {
@@ -247,8 +307,26 @@ function bindEvents() {
     renderTransactions();
     renderCashIns();
     renderDailyBreakdown();
+    renderAllTransactions();
   });
-  elements.projectGroupSelect.addEventListener("change", renderGroupLedger);
+  elements.transactionTypeFilter.addEventListener("change", () => {
+    state.filters.type = elements.transactionTypeFilter.value;
+    renderAllTransactions();
+  });
+  elements.generateReportButton.addEventListener("click", renderReportPage);
+  elements.analyticsProjectFilter.addEventListener("change", () => {
+    elements.projectGroupSelect.value = elements.analyticsProjectFilter.value;
+    render();
+  });
+  elements.analyticsWeekFilter.addEventListener("change", () => {
+    state.filters.week = elements.analyticsWeekFilter.value || getCurrentWeek();
+    elements.weekFilter.value = state.filters.week;
+    render();
+  });
+  elements.projectGroupSelect.addEventListener("change", () => {
+    renderGroupLedger();
+    renderReportPage();
+  });
   elements.groupLedgerTable.addEventListener("click", handleDetailClick);
   elements.detailCloseButton.addEventListener("click", closeDetailModal);
   elements.detailModal.addEventListener("click", (event) => {
@@ -261,8 +339,8 @@ function bindEvents() {
       closeDetailModal();
     }
   });
-  elements.expenseTable.addEventListener("click", handleExpenseTableClick);
-  elements.cashInTable.addEventListener("click", handleCashInTableClick);
+  elements.expenseTable?.addEventListener("click", handleExpenseTableClick);
+  elements.cashInTable?.addEventListener("click", handleCashInTableClick);
 }
 
 async function handleLogin(event) {
@@ -445,6 +523,33 @@ function isAuthenticated() {
   return Boolean(state.user);
 }
 
+function setActivePage(page) {
+  state.page = page;
+  elements.appPages.forEach((section) => {
+    section.classList.toggle("active", section.dataset.page === page);
+  });
+  elements.navButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.pageTarget === page);
+  });
+  const titles = {
+    dashboard: "Dashboard",
+    projects: "Projects",
+    transactions: "Transactions",
+    reports: "Reports",
+    analytics: "Analytics",
+    settings: "Settings",
+  };
+  elements.pageTitle.textContent = titles[page] || "Dashboard";
+  refreshIcons();
+}
+
+function startTransaction(mode) {
+  setActivePage("transactions");
+  resetForm();
+  setMode(mode);
+  elements.descriptionInput.focus();
+}
+
 function setMode(mode) {
   state.mode = mode;
   const isCashIn = mode === "cash-in";
@@ -476,11 +581,13 @@ function populateGroupControls() {
   if (!state.groups.length) {
     elements.categoryInput.value = CUSTOM_GROUP_VALUE;
   }
-  elements.categoryFilter.innerHTML = [
+  const projectOptions = [
     `<option value="All">All groups</option>`,
     ...state.groups.map((group) => `<option value="${escapeAttribute(group.name)}">${escapeHtml(group.name)}</option>`),
   ].join("");
+  elements.categoryFilter.innerHTML = projectOptions;
   elements.categoryFilter.value = state.filters.group;
+  elements.analyticsProjectFilter.innerHTML = projectOptions;
 
   const selectedGroup = elements.projectGroupSelect.value || getDefaultProjectGroup();
   elements.projectGroupSelect.innerHTML = state.groups.length ? state.groups.map((group) => {
@@ -490,6 +597,7 @@ function populateGroupControls() {
     ? selectedGroup
     : getDefaultProjectGroup();
   elements.projectGroupSelect.disabled = state.groups.length === 0;
+  elements.analyticsProjectFilter.value = elements.projectGroupSelect.value || state.filters.group;
 }
 
 function toggleCustomGroup() {
@@ -643,6 +751,7 @@ async function handleCashInTableClickAsync(event) {
 }
 
 function editTransaction(transaction, mode) {
+  setActivePage("transactions");
   setMode(mode);
   ensureGroup(transaction.category);
   populateGroupControls();
@@ -751,6 +860,39 @@ function handleGroupTableClick(event) {
     setMode("expense");
     elements.categoryInput.value = group.name;
     elements.descriptionInput.focus();
+  }
+}
+
+function handleProjectTableClick(event) {
+  const button = event.target.closest("button[data-action='edit-project']");
+  if (!button) {
+    return;
+  }
+  setActivePage("settings");
+  const group = state.groups.find((item) => item.name === button.dataset.name);
+  if (group) {
+    elements.groupOriginalName.value = group.name;
+    elements.groupNameInput.value = group.name;
+    elements.groupColorInput.value = group.color;
+    elements.groupSubmitButton.innerHTML = `<i data-lucide="save" aria-hidden="true"></i> Update Group`;
+    elements.cancelGroupEditButton.classList.remove("hidden");
+    elements.groupNameInput.focus();
+    refreshIcons();
+  }
+}
+
+function handleAllTransactionsClick(event) {
+  const button = event.target.closest("button[data-action='edit-transaction']");
+  if (button) {
+    editTransactionById(button.dataset.id, button.dataset.type);
+  }
+}
+
+function editTransactionById(id, type) {
+  const collection = type === "cash-in" ? state.cashIns : state.expenses;
+  const transaction = collection.find((entry) => entry.id === id);
+  if (transaction) {
+    editTransaction(transaction, type);
   }
 }
 
@@ -870,11 +1012,16 @@ function render() {
   const groupSummaries = getGroupSummaries();
   const activeGroupCount = groupSummaries.filter((group) => group.allocated > 0 || group.spent > 0).length;
 
-  elements.weekTotal.textContent = formatCurrency(sum(weeklyExpenses));
-  elements.cashInTotal.textContent = formatCurrency(sum(weeklyCashIns));
+  elements.weekTotal.textContent = formatCurrency(totalExpenses);
+  elements.cashInTotal.textContent = formatCurrency(totalCashIn);
   elements.runningBalance.textContent = formatCurrency(totalCashIn - totalExpenses);
   elements.activeGroups.textContent = String(activeGroupCount);
+  elements.userAvatar.textContent = getUserInitials();
 
+  renderDashboardPage(groupSummaries);
+  renderProjectsPage(groupSummaries);
+  renderAllTransactions();
+  renderReportPage();
   renderTrend();
   renderBudgets(groupSummaries);
   renderGroupLedger();
@@ -884,6 +1031,111 @@ function render() {
   renderGroupManager(groupSummaries);
   renderAccount();
   refreshIcons();
+}
+
+function renderDashboardPage(groupSummaries = getGroupSummaries()) {
+  const recent = getAllTransactions().sort(sortByDateDesc).slice(0, 5);
+  elements.recentTransactionsList.innerHTML = recent.length ? recent.map((entry) => {
+    const icon = entry.type === "cash-in" ? "arrow-down-to-line" : "receipt";
+    return `
+      <button class="recent-row" type="button" data-action="edit-transaction" data-type="${entry.type}" data-id="${escapeAttribute(entry.id)}">
+        <span class="recent-icon ${entry.type === "cash-in" ? "income-icon" : "expense-icon"}"><i data-lucide="${icon}" aria-hidden="true"></i></span>
+        <strong>${escapeHtml(entry.description)}</strong>
+        <span>${escapeHtml(entry.category)}</span>
+        <span>${formatDateTime(entry.date, entry.time)}</span>
+      </button>
+    `;
+  }).join("") : `<div class="empty-state compact-empty"><strong>No transactions yet</strong><span>Add Cash In or Cash Out entries.</span></div>`;
+
+  elements.recentTransactionsList.querySelectorAll("[data-action='edit-transaction']").forEach((button) => {
+    button.addEventListener("click", () => editTransactionById(button.dataset.id, button.dataset.type));
+  });
+
+  const topProjects = groupSummaries
+    .filter((group) => group.allocated > 0 || group.spent > 0)
+    .sort((a, b) => b.remaining - a.remaining)
+    .slice(0, 5);
+
+  elements.topProjectsList.innerHTML = topProjects.length ? topProjects.map((group) => {
+    const max = Math.max(...topProjects.map((item) => Math.abs(item.remaining)), 1);
+    const width = Math.max((Math.abs(group.remaining) / max) * 100, 5);
+    return `
+      <div class="rank-row">
+        <div>
+          <strong>${escapeHtml(group.name)}</strong>
+          <span class="category-bar"><span style="width:${width}%; background:${group.color}"></span></span>
+        </div>
+        <strong>${formatCurrency(group.remaining)}</strong>
+      </div>
+    `;
+  }).join("") : `<div class="empty-state compact-empty"><strong>No project balances</strong><span>Add funds to a project.</span></div>`;
+}
+
+function renderProjectsPage(groupSummaries = getGroupSummaries()) {
+  const query = state.filters.projectSearch;
+  const rows = groupSummaries
+    .filter((group) => !query || group.name.toLowerCase().includes(query))
+    .sort((a, b) => b.remaining - a.remaining);
+
+  elements.projectAllCount.textContent = `(${groupSummaries.length})`;
+  elements.projectActiveCount.textContent = `(${groupSummaries.filter((group) => group.allocated > 0 || group.spent > 0).length})`;
+  elements.projectTable.innerHTML = rows.map((group) => {
+    const isActive = group.allocated > 0 || group.spent > 0;
+    return `
+      <tr>
+        <td><strong>${escapeHtml(group.name)}</strong></td>
+        <td class="amount-col positive-amount">${formatCurrency(group.allocated)}</td>
+        <td class="amount-col cash-out-value">${formatCurrency(group.spent)}</td>
+        <td class="amount-col balance-positive">${formatCurrency(group.remaining)}</td>
+        <td><span class="status-chip ${isActive ? "active-status" : ""}">${isActive ? "Active" : "Closed"}</span></td>
+        <td class="actions-col">
+          <button class="icon-button" type="button" data-action="edit-project" data-name="${escapeAttribute(group.name)}" title="Edit project" aria-label="Edit ${escapeAttribute(group.name)}">
+            <i data-lucide="pencil" aria-hidden="true"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderAllTransactions() {
+  const rows = getFilteredAllTransactions();
+  let runningBalance = 0;
+  const balanceById = new Map(getAllTransactions().sort(sortLedgerAsc).map((entry) => {
+    runningBalance += entry.type === "cash-in" ? entry.amount : -entry.amount;
+    return [entry.id, runningBalance];
+  }));
+
+  elements.allTransactionsTable.innerHTML = rows.map((entry) => {
+    const isCashIn = entry.type === "cash-in";
+    return `
+      <tr>
+        <td>${formatDateTime(entry.date, entry.time)}</td>
+        <td>${escapeHtml(entry.category)}</td>
+        <td><span class="status-chip ${isCashIn ? "active-status" : "danger-status"}">${isCashIn ? "Cash In" : "Cash Out"}</span></td>
+        <td>${escapeHtml(entry.description)}</td>
+        <td class="amount-col cash-in-value">${isCashIn ? formatCurrency(entry.amount) : "-"}</td>
+        <td class="amount-col cash-out-value">${isCashIn ? "-" : formatCurrency(entry.amount)}</td>
+        <td class="amount-col balance-positive">${formatCurrency(balanceById.get(entry.id) || 0)}</td>
+        <td class="actions-col">
+          <button class="icon-button" type="button" data-action="edit-transaction" data-type="${entry.type}" data-id="${escapeAttribute(entry.id)}" title="Edit" aria-label="Edit ${escapeAttribute(entry.description)}">
+            <i data-lucide="pencil" aria-hidden="true"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+  elements.transactionCountLabel.textContent = `Showing ${rows.length} of ${getAllTransactions().length} transactions`;
+}
+
+function renderReportPage() {
+  const entries = getReportEntries();
+  const cashIn = sum(entries.filter((entry) => entry.type === "cash-in"));
+  const cashOut = sum(entries.filter((entry) => entry.type === "expense"));
+  elements.reportCashIn.textContent = formatCurrency(cashIn);
+  elements.reportCashOut.textContent = formatCurrency(cashOut);
+  elements.reportBalance.textContent = formatCurrency(cashIn - cashOut);
+  elements.reportTransactionCount.textContent = String(entries.length);
 }
 
 function renderGroupLedger() {
@@ -1035,6 +1287,9 @@ function renderDailyBreakdown() {
 }
 
 function renderTransactions() {
+  if (!elements.expenseTable) {
+    return;
+  }
   const filtered = getFilteredExpenses();
   elements.expenseTable.innerHTML = filtered.map((expense) => {
     const group = getGroup(expense.category);
@@ -1068,7 +1323,7 @@ function renderTransactions() {
     `;
   }).join("");
 
-  elements.emptyState.classList.toggle("hidden", filtered.length > 0);
+  elements.emptyState?.classList.toggle("hidden", filtered.length > 0);
   refreshIcons();
 }
 
@@ -1109,6 +1364,9 @@ function closeDetailModal() {
 }
 
 function renderCashIns() {
+  if (!elements.cashInTable) {
+    return;
+  }
   const filtered = getFilteredCashIns();
   elements.cashInTable.innerHTML = filtered.map((cashIn) => {
     const group = getGroup(cashIn.category);
@@ -1142,7 +1400,7 @@ function renderCashIns() {
     `;
   }).join("");
 
-  elements.cashInEmptyState.classList.toggle("hidden", filtered.length > 0);
+  elements.cashInEmptyState?.classList.toggle("hidden", filtered.length > 0);
   refreshIcons();
 }
 
@@ -1194,6 +1452,48 @@ function renderAccount() {
   elements.accountRole.textContent = user.role || "user";
   elements.accountStatus.textContent = user.status || "active";
   elements.accountVerified.textContent = user.verifiedAt ? formatDateTimeFromIso(user.verifiedAt) : "-";
+}
+
+function getAllTransactions() {
+  return [
+    ...state.cashIns.map((entry) => ({ ...entry, type: "cash-in" })),
+    ...state.expenses.map((entry) => ({ ...entry, type: "expense" })),
+  ];
+}
+
+function getFilteredAllTransactions() {
+  return getAllTransactions()
+    .filter((entry) => !state.filters.week || isDateInWeek(entry.date, state.filters.week))
+    .filter((entry) => state.filters.group === "All" || entry.category === state.filters.group)
+    .filter((entry) => state.filters.type === "All" || entry.type === state.filters.type)
+    .filter((entry) => matchesSearch(entry))
+    .sort(sortByDateDesc);
+}
+
+function getReportEntries() {
+  const selectedProject = elements.projectGroupSelect.value;
+  const from = elements.reportFromDate.value;
+  const to = elements.reportToDate.value;
+  return getAllTransactions()
+    .filter((entry) => !selectedProject || entry.category === selectedProject)
+    .filter((entry) => !from || entry.date >= from)
+    .filter((entry) => !to || entry.date <= to)
+    .sort(sortLedgerAsc);
+}
+
+function setDefaultReportDates() {
+  if (!elements.reportFromDate.value) {
+    const start = getWeekStartFromValue(state.filters.week);
+    elements.reportFromDate.value = toDateInputValue(start);
+  }
+  if (!elements.reportToDate.value) {
+    elements.reportToDate.value = getCurrentISTDate();
+  }
+}
+
+function getUserInitials() {
+  const email = state.user?.email || "R";
+  return email.slice(0, 1).toUpperCase();
 }
 
 function getFilteredExpenses() {
@@ -1820,6 +2120,14 @@ function addDays(date, days) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
+}
+
+function toDateInputValue(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 function setCurrentISTDateTime() {

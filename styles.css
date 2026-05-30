@@ -808,6 +808,41 @@ table {
   color: var(--danger);
 }
 
+.backup-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.backup-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.backup-summary div {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.backup-summary span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.backup-summary a {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.backup-table {
+  min-width: 760px;
+}
+
 th,
 td {
   border-bottom: 1px solid var(--line);
@@ -1253,6 +1288,7 @@ td {
   .report-filter-row,
   .inline-form,
   .account-summary,
+  .backup-summary,
   .daily-breakdown,
   .sheet-meta,
   .detail-grid,

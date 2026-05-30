@@ -9,10 +9,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=pages-shell-1">
+    <link rel="stylesheet" href="styles.css?v=backup-restore-1">
     <script src="config.js?v=google-sheets-v10"></script>
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script defer src="app.js?v=pages-shell-1"></script>
+    <script defer src="app.js?v=backup-restore-1"></script>
   </head>
   <body>
     <section class="login-screen" id="loginScreen" aria-label="Account access">
@@ -646,6 +646,58 @@
               </button>
               <p class="form-message" id="accountMessage" role="status" aria-live="polite"></p>
             </section>
+          </section>
+
+          <section class="panel backup-panel" aria-label="Backup and restore">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Backup</p>
+                <h2>Google Drive Backup & Restore</h2>
+              </div>
+              <div class="row-actions">
+                <button class="ghost-button" id="refreshBackupsButton" type="button">
+                  <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                  Refresh
+                </button>
+                <button class="primary-button" id="createBackupButton" type="button">
+                  <i data-lucide="cloud-upload" aria-hidden="true"></i>
+                  Backup Now
+                </button>
+              </div>
+            </div>
+            <div class="backup-summary">
+              <div>
+                <span>Schedule</span>
+                <strong>Daily at 2:15 AM IST</strong>
+              </div>
+              <div>
+                <span>Retention</span>
+                <strong id="backupRetentionLabel">30 days</strong>
+              </div>
+              <div>
+                <span>Storage</span>
+                <a id="backupFolderLink" href="#" target="_blank" rel="noopener">Google Drive Folder</a>
+              </div>
+            </div>
+            <div class="table-wrap compact-table-wrap">
+              <table class="backup-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Backup</th>
+                    <th scope="col">Created</th>
+                    <th scope="col">Size</th>
+                    <th scope="col" class="actions-col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="backupTable"></tbody>
+              </table>
+              <div id="backupEmptyState" class="empty-state hidden">
+                <i data-lucide="archive" aria-hidden="true"></i>
+                <strong>No backups found</strong>
+                <span>Create a backup now or wait for the daily schedule.</span>
+              </div>
+            </div>
+            <p class="form-message" id="backupMessage" role="status" aria-live="polite"></p>
           </section>
         </section>
       </section>

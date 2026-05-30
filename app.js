@@ -22,6 +22,7 @@ const state = {
   expenses: [],
   cashIns: [],
   groups: [],
+  backups: [],
   settings: loadSettings(),
   mode: "expense",
   page: "dashboard",
@@ -151,6 +152,13 @@ const elements = {
   confirmNewPasswordInput: document.querySelector("#confirmNewPasswordInput"),
   deleteAccountButton: document.querySelector("#deleteAccountButton"),
   accountMessage: document.querySelector("#accountMessage"),
+  refreshBackupsButton: document.querySelector("#refreshBackupsButton"),
+  createBackupButton: document.querySelector("#createBackupButton"),
+  backupRetentionLabel: document.querySelector("#backupRetentionLabel"),
+  backupFolderLink: document.querySelector("#backupFolderLink"),
+  backupTable: document.querySelector("#backupTable"),
+  backupEmptyState: document.querySelector("#backupEmptyState"),
+  backupMessage: document.querySelector("#backupMessage"),
   searchInput: document.querySelector("#searchInput"),
   weekFilter: document.querySelector("#weekFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
@@ -262,6 +270,9 @@ function bindEvents() {
   elements.groupTable.addEventListener("click", handleGroupTableClick);
   elements.passwordForm.addEventListener("submit", handlePasswordUpdate);
   elements.deleteAccountButton.addEventListener("click", handleDeleteAccount);
+  elements.refreshBackupsButton.addEventListener("click", loadBackups);
+  elements.createBackupButton.addEventListener("click", handleCreateBackup);
+  elements.backupTable.addEventListener("click", handleBackupTableClick);
   elements.cancelEditButton.addEventListener("click", resetForm);
   elements.expenseModeButton.addEventListener("click", () => setMode("expense"));
   elements.cashInModeButton.addEventListener("click", () => setMode("cash-in"));
@@ -540,6 +551,9 @@ function setActivePage(page) {
     settings: "Settings",
   };
   elements.pageTitle.textContent = titles[page] || "Dashboard";
+  if (page === "settings" && isAuthenticated() && !state.backups.length) {
+    void loadBackups();
+  }
   refreshIcons();
 }
 
@@ -1004,6 +1018,68 @@ function showAccountMessage(message, isError = false) {
   elements.accountMessage.classList.toggle("error", isError);
 }
 
+async function loadBackups() {
+  showBackupMessage("Loading backups...");
+  try {
+    const data = await apiRequest("listBackups", { token: state.token });
+    state.backups = data.backups || [];
+    renderBackups(data);
+    showBackupMessage(state.backups.length ? "Backups loaded." : "No backups found.");
+  } catch (error) {
+    showBackupMessage(error.message || "Could not load backups.", true);
+  }
+}
+
+async function handleCreateBackup() {
+  elements.createBackupButton.disabled = true;
+  showBackupMessage("Creating Google Drive backup...");
+  try {
+    const data = await apiRequest("createBackup", { token: state.token });
+    state.backups = data.backups || (data.backup ? [data.backup, ...state.backups] : state.backups);
+    renderBackups(data);
+    showBackupMessage("Backup created.");
+  } catch (error) {
+    showBackupMessage(error.message || "Could not create backup.", true);
+  } finally {
+    elements.createBackupButton.disabled = false;
+  }
+}
+
+function handleBackupTableClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) {
+    return;
+  }
+  if (button.dataset.action === "restore-backup") {
+    void restoreBackup(button.dataset.id);
+  }
+}
+
+async function restoreBackup(backupId) {
+  const backup = state.backups.find((item) => item.id === backupId);
+  const name = backup ? backup.name : "selected backup";
+  const confirmation = window.prompt(`Restore from "${name}"? This will replace the current Google Sheet data. Type RESTORE to continue.`);
+  if (confirmation !== "RESTORE") {
+    showBackupMessage("Restore cancelled.", true);
+    return;
+  }
+
+  showBackupMessage("Restoring backup. Please wait...");
+  try {
+    await apiRequest("restoreBackup", { token: state.token, backupId });
+    showBackupMessage("Backup restored. Reloading data...");
+    await bootDashboard();
+    await loadBackups();
+  } catch (error) {
+    showBackupMessage(error.message || "Could not restore backup.", true);
+  }
+}
+
+function showBackupMessage(message, isError = false) {
+  elements.backupMessage.textContent = message;
+  elements.backupMessage.classList.toggle("error", isError);
+}
+
 function render() {
   const weeklyExpenses = expensesForWeek(state.filters.week);
   const weeklyCashIns = cashInsForWeek(state.filters.week);
@@ -1030,6 +1106,7 @@ function render() {
   renderCashIns();
   renderGroupManager(groupSummaries);
   renderAccount();
+  renderBackups();
   refreshIcons();
 }
 
@@ -1452,6 +1529,33 @@ function renderAccount() {
   elements.accountRole.textContent = user.role || "user";
   elements.accountStatus.textContent = user.status || "active";
   elements.accountVerified.textContent = user.verifiedAt ? formatDateTimeFromIso(user.verifiedAt) : "-";
+}
+
+function renderBackups(meta = {}) {
+  const backups = state.backups || [];
+  elements.backupRetentionLabel.textContent = `${meta.retentionDays || 30} days`;
+  if (meta.folderUrl) {
+    elements.backupFolderLink.href = meta.folderUrl;
+  }
+  elements.backupTable.innerHTML = backups.map((backup) => `
+    <tr>
+      <td>
+        <div class="expense-name">
+          <strong>${escapeHtml(backup.name)}</strong>
+          ${backup.url ? `<a href="${escapeAttribute(backup.url)}" target="_blank" rel="noopener">Open in Drive</a>` : ""}
+        </div>
+      </td>
+      <td>${formatDateTimeFromIso(backup.createdAt)}</td>
+      <td>${formatFileSize(backup.size)}</td>
+      <td class="actions-col">
+        <button class="icon-button" type="button" data-action="restore-backup" data-id="${escapeAttribute(backup.id)}" aria-label="Restore ${escapeAttribute(backup.name)}" title="Restore">
+          <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+        </button>
+      </td>
+    </tr>
+  `).join("");
+  elements.backupEmptyState.classList.toggle("hidden", backups.length > 0);
+  refreshIcons();
 }
 
 function getAllTransactions() {
@@ -2245,6 +2349,17 @@ function formatDateTimeFromIso(value) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
+}
+
+function formatFileSize(value) {
+  const size = Number(value || 0);
+  if (size >= 1048576) {
+    return `${(size / 1048576).toFixed(1)} MB`;
+  }
+  if (size >= 1024) {
+    return `${Math.round(size / 1024)} KB`;
+  }
+  return `${size} B`;
 }
 
 function formatShortDate(date) {

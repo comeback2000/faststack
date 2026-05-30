@@ -13,10 +13,15 @@ const FASTSTACK_TIME_ZONE = "Asia/Kolkata";
 const FASTSTACK_SESSION_DAYS = 7;
 const FASTSTACK_VERIFICATION_MINUTES = 30;
 const FASTSTACK_RESET_MINUTES = 20;
+const FASTSTACK_BACKUP_RETENTION_DAYS = 30;
+const FASTSTACK_BACKUP_FOLDER_NAME = "FastStack Expense Tracker Backups";
+const FASTSTACK_BACKUP_PREFIX = "FastStack Expense Tracker Backup - ";
 const FASTSTACK_FRONTEND_URL = "https://comeback2000.github.io/faststack/";
 const FASTSTACK_PROPERTIES = {
   SPREADSHEET_ID: "FASTSTACK_SPREADSHEET_ID",
   APP_SECRET: "FASTSTACK_APP_SECRET",
+  BACKUP_FOLDER_ID: "FASTSTACK_BACKUP_FOLDER_ID",
+  BACKUP_OWNER_EMAIL: "FASTSTACK_BACKUP_OWNER_EMAIL",
 };
 
 const FASTSTACK_SHEETS = {
@@ -68,10 +73,12 @@ function setupFastStackBackend() {
     ensureSheet_(spreadsheet, FASTSTACK_SHEETS[key]);
   });
   migrateUsersSheet_(spreadsheet.getSheetByName(FASTSTACK_SHEETS.USERS.name));
+  tryEnsureBackupTrigger_();
 
   return {
     spreadsheetId: spreadsheetId,
     spreadsheetUrl: spreadsheet.getUrl(),
+    backupFolderUrl: getBackupFolder_().getUrl(),
     nextStep: "Deploy this project as a Web App, then use the app sign-up screen with a gmail.com address.",
   };
 }
@@ -221,6 +228,12 @@ function handleApiRequest_(request) {
       data = updatePassword_(session, request.currentPassword, request.newPassword);
     } else if (action === "deleteAccount") {
       data = deleteAccount_(session);
+    } else if (action === "listBackups") {
+      data = listBackups_(session);
+    } else if (action === "createBackup") {
+      data = createBackupForSession_(session);
+    } else if (action === "restoreBackup") {
+      data = restoreBackup_(session, request.backupId);
     } else {
       throw new Error("Unsupported action.");
     }
@@ -635,6 +648,88 @@ function deleteAccount_(session) {
   return { deleted: true };
 }
 
+function listBackups_(session) {
+  requireBackupAccess_(session);
+  cleanupOldBackups_();
+  return {
+    backups: getBackupFiles_().map(function (file) {
+      return {
+        id: file.getId(),
+        name: file.getName(),
+        createdAt: file.getDateCreated().toISOString(),
+        updatedAt: file.getLastUpdated().toISOString(),
+        size: file.getSize(),
+        url: file.getUrl(),
+      };
+    }),
+    retentionDays: FASTSTACK_BACKUP_RETENTION_DAYS,
+    folderUrl: getBackupFolder_().getUrl(),
+  };
+}
+
+function createBackupForSession_(session) {
+  requireBackupAccess_(session);
+  return {
+    backup: createFastStackBackup_("manual", session.email),
+    backups: getBackupFiles_().map(function (file) {
+      return {
+        id: file.getId(),
+        name: file.getName(),
+        createdAt: file.getDateCreated().toISOString(),
+        updatedAt: file.getLastUpdated().toISOString(),
+        size: file.getSize(),
+        url: file.getUrl(),
+      };
+    }),
+  };
+}
+
+function restoreBackup_(session, backupId) {
+  requireBackupAccess_(session);
+  const cleanId = validateId_(backupId);
+  const folder = getBackupFolder_();
+  const backupFile = DriveApp.getFileById(cleanId);
+  if (!isFileInFolder_(backupFile, folder) || backupFile.getName().indexOf(FASTSTACK_BACKUP_PREFIX) !== 0) {
+    throw new Error("Backup not found.");
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const restorePoint = createFastStackBackup_("pre-restore", session.email);
+    const target = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty(FASTSTACK_PROPERTIES.SPREADSHEET_ID));
+    const source = SpreadsheetApp.openById(cleanId);
+    Object.keys(FASTSTACK_SHEETS).forEach(function (key) {
+      const definition = FASTSTACK_SHEETS[key];
+      const sourceSheet = source.getSheetByName(definition.name);
+      const targetSheet = ensureSheet_(target, definition);
+      targetSheet.clearContents();
+      if (sourceSheet && sourceSheet.getLastRow() > 0 && sourceSheet.getLastColumn() > 0) {
+        const values = sourceSheet.getDataRange().getValues();
+        targetSheet.getRange(1, 1, values.length, values[0].length).setValues(values);
+      } else {
+        targetSheet.getRange(1, 1, 1, definition.headers.length).setValues([definition.headers]);
+      }
+    });
+    target.setSpreadsheetTimeZone(FASTSTACK_TIME_ZONE);
+    migrateUsersSheet_(target.getSheetByName(FASTSTACK_SHEETS.USERS.name));
+    cleanupOldBackups_();
+    logHistory_(session, "restoreBackup", "backup", cleanId, "Pre-restore backup: " + restorePoint.id);
+    return {
+      restored: true,
+      restoredBackupId: cleanId,
+      preRestoreBackup: restorePoint,
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function runFastStackDailyBackup() {
+  ensureFastStackBackend_();
+  return createFastStackBackup_("daily", "trigger");
+}
+
 function requireSession_(token) {
   const cleanToken = validateToken_(token);
   const tokenHash = sha256Hex_(cleanToken);
@@ -869,6 +964,125 @@ function getUserAccount_(session) {
   };
 }
 
+function requireBackupAccess_(session) {
+  const properties = PropertiesService.getScriptProperties();
+  const ownerEmail = properties.getProperty(FASTSTACK_PROPERTIES.BACKUP_OWNER_EMAIL);
+  if (!ownerEmail) {
+    properties.setProperty(FASTSTACK_PROPERTIES.BACKUP_OWNER_EMAIL, session.email);
+    return;
+  }
+  if (session.role === "admin" || String(ownerEmail).toLowerCase() === String(session.email).toLowerCase()) {
+    return;
+  }
+  throw new Error("Only the backup owner or an admin can manage backups.");
+}
+
+function createFastStackBackup_(kind, actorEmail) {
+  cleanupOldBackups_();
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty(FASTSTACK_PROPERTIES.SPREADSHEET_ID);
+  if (!spreadsheetId) {
+    throw new Error("Backend is not set up. Run setupFastStackBackend first.");
+  }
+  const sourceFile = DriveApp.getFileById(spreadsheetId);
+  const folder = getBackupFolder_();
+  const stamp = Utilities.formatDate(new Date(), FASTSTACK_TIME_ZONE, "yyyy-MM-dd HH-mm-ss");
+  const backupName = FASTSTACK_BACKUP_PREFIX + stamp + " (" + kind + ")";
+  const copy = sourceFile.makeCopy(backupName, folder);
+  copy.setDescription(JSON.stringify({
+    app: "FastStack Expense Tracker",
+    kind: kind,
+    actor: actorEmail || "",
+    sourceSpreadsheetId: spreadsheetId,
+    createdAt: new Date().toISOString(),
+    retentionDays: FASTSTACK_BACKUP_RETENTION_DAYS,
+  }));
+  cleanupOldBackups_();
+  return {
+    id: copy.getId(),
+    name: copy.getName(),
+    createdAt: copy.getDateCreated().toISOString(),
+    updatedAt: copy.getLastUpdated().toISOString(),
+    size: copy.getSize(),
+    url: copy.getUrl(),
+  };
+}
+
+function getBackupFolder_() {
+  const properties = PropertiesService.getScriptProperties();
+  const folderId = properties.getProperty(FASTSTACK_PROPERTIES.BACKUP_FOLDER_ID);
+  if (folderId) {
+    try {
+      return DriveApp.getFolderById(folderId);
+    } catch (error) {
+      properties.deleteProperty(FASTSTACK_PROPERTIES.BACKUP_FOLDER_ID);
+    }
+  }
+
+  const folders = DriveApp.getFoldersByName(FASTSTACK_BACKUP_FOLDER_NAME);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(FASTSTACK_BACKUP_FOLDER_NAME);
+  properties.setProperty(FASTSTACK_PROPERTIES.BACKUP_FOLDER_ID, folder.getId());
+  return folder;
+}
+
+function getBackupFiles_() {
+  const folder = getBackupFolder_();
+  const files = folder.getFiles();
+  const backups = [];
+  while (files.hasNext()) {
+    const file = files.next();
+    if (file.getName().indexOf(FASTSTACK_BACKUP_PREFIX) === 0) {
+      backups.push(file);
+    }
+  }
+  backups.sort(function (a, b) {
+    return b.getDateCreated().getTime() - a.getDateCreated().getTime();
+  });
+  return backups;
+}
+
+function cleanupOldBackups_() {
+  const cutoff = Date.now() - FASTSTACK_BACKUP_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  getBackupFiles_().forEach(function (file) {
+    if (file.getDateCreated().getTime() < cutoff) {
+      file.setTrashed(true);
+    }
+  });
+}
+
+function ensureBackupTrigger_() {
+  const handler = "runFastStackDailyBackup";
+  const exists = ScriptApp.getProjectTriggers().some(function (trigger) {
+    return trigger.getHandlerFunction() === handler;
+  });
+  if (!exists) {
+    ScriptApp.newTrigger(handler)
+      .timeBased()
+      .everyDays(1)
+      .atHour(2)
+      .nearMinute(15)
+      .inTimezone(FASTSTACK_TIME_ZONE)
+      .create();
+  }
+}
+
+function tryEnsureBackupTrigger_() {
+  try {
+    ensureBackupTrigger_();
+  } catch (error) {
+    console.warn("Backup trigger is not installed yet: " + safeError_(error));
+  }
+}
+
+function isFileInFolder_(file, folder) {
+  const parents = file.getParents();
+  while (parents.hasNext()) {
+    if (parents.next().getId() === folder.getId()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function archiveGroupsForUser_(userId, now) {
   const sheet = getSheet_(FASTSTACK_SHEETS.GROUPS.name);
   const data = sheet.getDataRange().getValues();
@@ -1003,7 +1217,7 @@ function validateToken_(token) {
 
 function validateId_(id) {
   const value = String(id || "");
-  if (!/^[A-Za-z0-9._:-]{1,120}$/.test(value)) {
+  if (!/^[A-Za-z0-9._:-]{1,160}$/.test(value)) {
     throw new Error("Invalid record id.");
   }
   return value;
@@ -1071,6 +1285,7 @@ function ensureFastStackBackend_() {
   if (!properties.getProperty(FASTSTACK_PROPERTIES.SPREADSHEET_ID) || !properties.getProperty(FASTSTACK_PROPERTIES.APP_SECRET)) {
     setupFastStackBackend();
   }
+  tryEnsureBackupTrigger_();
 }
 
 function ensureSheet_(spreadsheet, definition) {

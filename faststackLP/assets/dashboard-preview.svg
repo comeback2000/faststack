@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="620" viewBox="0 0 960 620" role="img" aria-labelledby="title desc">
+  <title id="title">FastStack dashboard screenshot</title>
+  <desc id="desc">A dashboard with cash in, cash out, balance cards, project rankings, and recent transactions.</desc>
+  <rect width="960" height="620" rx="28" fill="#f6f8fb"/>
+  <rect x="24" y="24" width="140" height="572" rx="18" fill="#071a2e"/>
+  <circle cx="54" cy="62" r="14" fill="#dffcf5"/>
+  <text x="78" y="58" font-family="Inter, Arial" font-size="18" font-weight="800" fill="#fff">FastStack</text>
+  <text x="78" y="78" font-family="Inter, Arial" font-size="16" font-weight="700" fill="#d8e6ef">Spend</text>
+  <rect x="42" y="132" width="98" height="42" rx="10" fill="#0f766e"/>
+  <text x="62" y="159" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#fff">Dashboard</text>
+  <text x="62" y="218" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#c9d9e7">Projects</text>
+  <text x="62" y="260" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#c9d9e7">Transactions</text>
+  <text x="62" y="302" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#c9d9e7">Reports</text>
+  <text x="62" y="344" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#c9d9e7">Analytics</text>
+  <text x="62" y="386" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#c9d9e7">Settings</text>
+  <text x="200" y="70" font-family="Inter, Arial" font-size="30" font-weight="850" fill="#0f172a">Dashboard</text>
+  <g>
+    <rect x="200" y="110" width="160" height="110" rx="14" fill="#fff" stroke="#dce4ec"/>
+    <text x="222" y="146" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#647184">Total Projects</text>
+    <text x="222" y="184" font-family="Inter, Arial" font-size="30" font-weight="850" fill="#0f172a">12</text>
+    <text x="222" y="204" font-family="Inter, Arial" font-size="12" fill="#647184">Active projects</text>
+  </g>
+  <g>
+    <rect x="382" y="110" width="160" height="110" rx="14" fill="#fff" stroke="#dce4ec"/>
+    <text x="404" y="146" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#647184">Total Cash In</text>
+    <text x="404" y="184" font-family="Inter, Arial" font-size="28" font-weight="850" fill="#047857">₹5,20,000</text>
+    <text x="404" y="204" font-family="Inter, Arial" font-size="12" fill="#647184">All projects</text>
+  </g>
+  <g>
+    <rect x="564" y="110" width="160" height="110" rx="14" fill="#fff" stroke="#dce4ec"/>
+    <text x="586" y="146" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#647184">Cash Out</text>
+    <text x="586" y="184" font-family="Inter, Arial" font-size="28" font-weight="850" fill="#c24135">₹1,75,000</text>
+    <text x="586" y="204" font-family="Inter, Arial" font-size="12" fill="#647184">This month</text>
+  </g>
+  <g>
+    <rect x="746" y="110" width="160" height="110" rx="14" fill="#fff" stroke="#dce4ec"/>
+    <text x="768" y="146" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#647184">Net Balance</text>
+    <text x="768" y="184" font-family="Inter, Arial" font-size="28" font-weight="850" fill="#047857">₹3,45,000</text>
+    <text x="768" y="204" font-family="Inter, Arial" font-size="12" fill="#647184">Available</text>
+  </g>
+  <rect x="200" y="248" width="430" height="292" rx="16" fill="#fff" stroke="#dce4ec"/>
+  <text x="224" y="288" font-family="Inter, Arial" font-size="20" font-weight="850" fill="#0f172a">Recent Transactions</text>
+  <g font-family="Inter, Arial" font-size="15" fill="#0f172a">
+    <circle cx="234" cy="330" r="16" fill="#fde68a"/><text x="264" y="335" font-weight="800">Cable Cart</text><text x="480" y="335" fill="#647184">Delhi Tour</text><text x="555" y="335" fill="#c24135">₹2,200</text>
+    <circle cx="234" cy="382" r="16" fill="#fed7aa"/><text x="264" y="387" font-weight="800">Lunch</text><text x="480" y="387" fill="#647184">Delhi Tour</text><text x="555" y="387" fill="#c24135">₹2,000</text>
+    <circle cx="234" cy="434" r="16" fill="#bbf7d0"/><text x="264" y="439" font-weight="800">Cash In</text><text x="480" y="439" fill="#647184">Tour</text><text x="548" y="439" fill="#047857">₹100,000</text>
+    <circle cx="234" cy="486" r="16" fill="#bfdbfe"/><text x="264" y="491" font-weight="800">Food</text><text x="480" y="491" fill="#647184">Petty Cash</text><text x="562" y="491" fill="#c24135">₹300</text>
+  </g>
+  <rect x="654" y="248" width="252" height="292" rx="16" fill="#fff" stroke="#dce4ec"/>
+  <text x="678" y="288" font-family="Inter, Arial" font-size="20" font-weight="850" fill="#0f172a">Project Balance</text>
+  <g font-family="Inter, Arial" font-size="14" fill="#0f172a">
+    <text x="678" y="334" font-weight="800">Delhi Tour</text><rect x="678" y="348" width="190" height="8" rx="4" fill="#e2e8f0"/><rect x="678" y="348" width="160" height="8" rx="4" fill="#0f766e"/><text x="808" y="334" fill="#047857">₹92,300</text>
+    <text x="678" y="390" font-weight="800">Petty Cash</text><rect x="678" y="404" width="190" height="8" rx="4" fill="#e2e8f0"/><rect x="678" y="404" width="120" height="8" rx="4" fill="#0f766e"/><text x="816" y="390" fill="#047857">₹35,000</text>
+    <text x="678" y="446" font-weight="800">Office Fund</text><rect x="678" y="460" width="190" height="8" rx="4" fill="#e2e8f0"/><rect x="678" y="460" width="80" height="8" rx="4" fill="#0f766e"/><text x="816" y="446" fill="#047857">₹15,000</text>
+    <text x="678" y="502" font-weight="800">Chennai Trip</text><rect x="678" y="516" width="190" height="8" rx="4" fill="#e2e8f0"/><rect x="678" y="516" width="64" height="8" rx="4" fill="#0f766e"/><text x="816" y="502" fill="#047857">₹12,500</text>
+  </g>
+</svg>

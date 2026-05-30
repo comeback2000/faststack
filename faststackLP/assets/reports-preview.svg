@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="620" viewBox="0 0 960 620" role="img" aria-labelledby="title desc">
+  <title id="title">FastStack reports screenshot</title>
+  <desc id="desc">A report page with project summary metrics, transaction rows, and export buttons.</desc>
+  <rect width="960" height="620" rx="28" fill="#f7fafc"/>
+  <rect x="44" y="46" width="872" height="528" rx="20" fill="#fff" stroke="#dce4ec"/>
+  <text x="82" y="100" font-family="Inter, Arial" font-size="30" font-weight="850" fill="#0f172a">Reports</text>
+  <g font-family="Inter, Arial" font-size="14" fill="#647184">
+    <text x="86" y="150" fill="#0f766e" font-weight="800">Project Summary</text>
+    <text x="220" y="150">Cash Flow</text>
+    <text x="316" y="150">Daily Report</text>
+    <text x="430" y="150">Monthly Report</text>
+  </g>
+  <line x1="82" y1="164" x2="878" y2="164" stroke="#dce4ec"/>
+  <g>
+    <rect x="82" y="190" width="170" height="70" rx="12" fill="#f8fafc" stroke="#dce4ec"/>
+    <text x="104" y="218" font-family="Inter, Arial" font-size="12" font-weight="700" fill="#647184">Project</text>
+    <text x="104" y="242" font-family="Inter, Arial" font-size="16" font-weight="800" fill="#0f172a">Delhi Tour</text>
+    <rect x="276" y="190" width="170" height="70" rx="12" fill="#f8fafc" stroke="#dce4ec"/>
+    <text x="298" y="218" font-family="Inter, Arial" font-size="12" font-weight="700" fill="#647184">From</text>
+    <text x="298" y="242" font-family="Inter, Arial" font-size="16" font-weight="800" fill="#0f172a">01-05-2026</text>
+    <rect x="470" y="190" width="170" height="70" rx="12" fill="#f8fafc" stroke="#dce4ec"/>
+    <text x="492" y="218" font-family="Inter, Arial" font-size="12" font-weight="700" fill="#647184">To</text>
+    <text x="492" y="242" font-family="Inter, Arial" font-size="16" font-weight="800" fill="#0f172a">31-05-2026</text>
+    <rect x="680" y="198" width="160" height="54" rx="10" fill="#0f766e"/>
+    <text x="718" y="232" font-family="Inter, Arial" font-size="15" font-weight="850" fill="#fff">Generate Report</text>
+  </g>
+  <g>
+    <rect x="82" y="290" width="180" height="92" rx="14" fill="#ecfdf5"/>
+    <text x="108" y="322" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#647184">Cash In</text>
+    <text x="108" y="358" font-family="Inter, Arial" font-size="28" font-weight="850" fill="#047857">₹102,000</text>
+    <rect x="286" y="290" width="180" height="92" rx="14" fill="#fff7f7"/>
+    <text x="312" y="322" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#647184">Cash Out</text>
+    <text x="312" y="358" font-family="Inter, Arial" font-size="28" font-weight="850" fill="#c24135">₹9,700</text>
+    <rect x="490" y="290" width="180" height="92" rx="14" fill="#ecfdf5"/>
+    <text x="516" y="322" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#647184">Net Balance</text>
+    <text x="516" y="358" font-family="Inter, Arial" font-size="28" font-weight="850" fill="#047857">₹92,300</text>
+    <rect x="694" y="290" width="180" height="92" rx="14" fill="#eff6ff"/>
+    <text x="720" y="322" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#647184">Transactions</text>
+    <text x="720" y="358" font-family="Inter, Arial" font-size="28" font-weight="850" fill="#2563eb">8</text>
+  </g>
+  <rect x="82" y="414" width="792" height="100" rx="12" fill="#fff" stroke="#dce4ec"/>
+  <g font-family="Inter, Arial" font-size="14">
+    <text x="112" y="452" font-weight="800" fill="#0f172a">Date</text>
+    <text x="246" y="452" font-weight="800" fill="#0f172a">Description</text>
+    <text x="486" y="452" font-weight="800" fill="#0f172a">Type</text>
+    <text x="612" y="452" font-weight="800" fill="#0f172a">Amount</text>
+    <text x="744" y="452" font-weight="800" fill="#0f172a">Balance</text>
+    <line x1="104" y1="468" x2="846" y2="468" stroke="#dce4ec"/>
+    <text x="112" y="494" fill="#0f172a">May 29, 10:30 PM</text>
+    <text x="246" y="494" fill="#0f172a">Delhi Tour Cashin</text>
+    <text x="486" y="494" fill="#047857">Cash In</text>
+    <text x="612" y="494" fill="#047857">₹100,000</text>
+    <text x="744" y="494" fill="#047857">₹100,000</text>
+  </g>
+  <rect x="82" y="532" width="110" height="40" rx="9" fill="#0f766e"/>
+  <text x="116" y="557" font-family="Inter, Arial" font-size="14" font-weight="850" fill="#fff">PDF</text>
+  <rect x="210" y="532" width="110" height="40" rx="9" fill="#0f766e"/>
+  <text x="240" y="557" font-family="Inter, Arial" font-size="14" font-weight="850" fill="#fff">Excel</text>
+</svg>

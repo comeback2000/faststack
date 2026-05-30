@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="620" viewBox="0 0 960 620" role="img" aria-labelledby="title desc">
+  <title id="title">FastStack projects screenshot</title>
+  <desc id="desc">A project page showing project cash in, cash out, balance, status, and edit actions.</desc>
+  <rect width="960" height="620" rx="28" fill="#f8fafc"/>
+  <rect x="48" y="44" width="864" height="532" rx="20" fill="#fff" stroke="#dce4ec"/>
+  <text x="86" y="96" font-family="Inter, Arial" font-size="30" font-weight="850" fill="#0f172a">Projects</text>
+  <rect x="736" y="66" width="134" height="48" rx="10" fill="#0f766e"/>
+  <text x="764" y="96" font-family="Inter, Arial" font-size="14" font-weight="850" fill="#fff">Add Project</text>
+  <rect x="86" y="140" width="786" height="380" rx="14" fill="#fff" stroke="#dce4ec"/>
+  <g font-family="Inter, Arial" font-size="14" fill="#647184">
+    <text x="114" y="176" font-weight="850" fill="#0f172a">Project Name</text>
+    <text x="340" y="176" font-weight="850" fill="#0f172a">Cash In</text>
+    <text x="486" y="176" font-weight="850" fill="#0f172a">Cash Out</text>
+    <text x="632" y="176" font-weight="850" fill="#0f172a">Balance</text>
+    <text x="772" y="176" font-weight="850" fill="#0f172a">Status</text>
+  </g>
+  <line x1="104" y1="194" x2="854" y2="194" stroke="#dce4ec"/>
+  <g font-family="Inter, Arial" font-size="15" fill="#0f172a">
+    <text x="114" y="232" font-weight="850">Delhi Tour</text><text x="340" y="232" fill="#047857" font-weight="850">₹102,000</text><text x="486" y="232" fill="#c24135" font-weight="850">₹9,700</text><text x="632" y="232" fill="#047857" font-weight="850">₹92,300</text><rect x="768" y="212" width="58" height="26" rx="13" fill="#dcfce7"/><text x="782" y="230" font-size="12" fill="#15803d" font-weight="850">Active</text>
+    <text x="114" y="286" font-weight="850">Petty Cash</text><text x="340" y="286" fill="#047857" font-weight="850">₹50,000</text><text x="486" y="286" fill="#c24135" font-weight="850">₹15,000</text><text x="632" y="286" fill="#047857" font-weight="850">₹35,000</text><rect x="768" y="266" width="58" height="26" rx="13" fill="#dcfce7"/><text x="782" y="284" font-size="12" fill="#15803d" font-weight="850">Active</text>
+    <text x="114" y="340" font-weight="850">Office Fund</text><text x="340" y="340" fill="#047857" font-weight="850">₹25,000</text><text x="486" y="340" fill="#c24135" font-weight="850">₹10,000</text><text x="632" y="340" fill="#047857" font-weight="850">₹15,000</text><rect x="768" y="320" width="58" height="26" rx="13" fill="#dcfce7"/><text x="782" y="338" font-size="12" fill="#15803d" font-weight="850">Active</text>
+    <text x="114" y="394" font-weight="850">Chennai Trip</text><text x="340" y="394" fill="#047857" font-weight="850">₹30,000</text><text x="486" y="394" fill="#c24135" font-weight="850">₹17,500</text><text x="632" y="394" fill="#047857" font-weight="850">₹12,500</text><rect x="768" y="374" width="58" height="26" rx="13" fill="#dcfce7"/><text x="782" y="392" font-size="12" fill="#15803d" font-weight="850">Active</text>
+    <text x="114" y="448" font-weight="850">Team Outing</text><text x="340" y="448" fill="#047857" font-weight="850">₹15,000</text><text x="486" y="448" fill="#c24135" font-weight="850">₹11,200</text><text x="632" y="448" fill="#047857" font-weight="850">₹3,800</text><rect x="768" y="428" width="58" height="26" rx="13" fill="#e2e8f0"/><text x="780" y="446" font-size="12" fill="#475569" font-weight="850">Closed</text>
+  </g>
+</svg>

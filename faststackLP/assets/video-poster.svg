@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">FastStack promo video poster</title>
+  <desc id="desc">FastStack Spend landing hero video poster with dashboard preview.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#061225"/>
+      <stop offset="0.55" stop-color="#0b2d3b"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <text x="84" y="118" font-family="Inter, Arial" font-size="54" font-weight="850" fill="#fff">FastStack Spend</text>
+  <text x="88" y="168" font-family="Inter, Arial" font-size="26" font-weight="700" fill="#ccefe6">Petty cash, project budgets, reports, and backups in one secure tracker.</text>
+  <rect x="82" y="232" width="1116" height="400" rx="28" fill="#f8fafc"/>
+  <rect x="114" y="264" width="166" height="336" rx="18" fill="#071a2e"/>
+  <rect x="302" y="264" width="864" height="336" rx="18" fill="#fff"/>
+  <text x="334" y="318" font-family="Inter, Arial" font-size="32" font-weight="850" fill="#0f172a">Dashboard</text>
+  <rect x="334" y="356" width="178" height="88" rx="14" fill="#ecfdf5"/>
+  <rect x="532" y="356" width="178" height="88" rx="14" fill="#fff7f7"/>
+  <rect x="730" y="356" width="178" height="88" rx="14" fill="#f8fafc"/>
+  <rect x="928" y="356" width="178" height="88" rx="14" fill="#eff6ff"/>
+  <text x="356" y="406" font-family="Inter, Arial" font-size="26" font-weight="850" fill="#047857">₹5.2L</text>
+  <text x="554" y="406" font-family="Inter, Arial" font-size="26" font-weight="850" fill="#c24135">₹1.75L</text>
+  <text x="752" y="406" font-family="Inter, Arial" font-size="26" font-weight="850" fill="#0f172a">12</text>
+  <text x="950" y="406" font-family="Inter, Arial" font-size="26" font-weight="850" fill="#047857">₹3.45L</text>
+  <circle cx="640" cy="544" r="58" fill="#0f766e"/>
+  <path d="M623 512 L678 544 L623 576 Z" fill="#fff"/>
+</svg>

@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>FastStack White Label Deployment Guide</title>
+    <style>
+      @page {
+        margin: 18mm;
+      }
+
+      :root {
+        --ink: #0f172a;
+        --muted: #475569;
+        --line: #dce4ec;
+        --accent: #0f766e;
+        --soft: #f6f8fb;
+        --navy: #071a2e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11.5pt;
+        line-height: 1.55;
+      }
+
+      .cover {
+        min-height: 88vh;
+        display: grid;
+        align-content: center;
+        gap: 18px;
+        border: 2px solid var(--line);
+        border-radius: 16px;
+        padding: 48px;
+        background: linear-gradient(135deg, #ffffff, #edf7f4);
+      }
+
+      .brand {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        font-weight: 800;
+      }
+
+      .mark {
+        display: grid;
+        width: 54px;
+        height: 54px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #ffffff;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.1;
+      }
+
+      h1 {
+        max-width: 680px;
+        font-size: 36pt;
+      }
+
+      h2 {
+        margin-top: 28px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 8px;
+        color: var(--navy);
+        font-size: 20pt;
+      }
+
+      h3 {
+        margin-top: 18px;
+        color: var(--accent);
+        font-size: 14pt;
+      }
+
+      p {
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+
+      ul,
+      ol {
+        margin: 8px 0 0 22px;
+        padding: 0;
+      }
+
+      li {
+        margin: 4px 0;
+      }
+
+      .page-break {
+        break-before: page;
+      }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .card,
+      table {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #ffffff;
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      table {
+        width: 100%;
+        margin-top: 12px;
+        border-collapse: collapse;
+        overflow: hidden;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 9px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--soft);
+        color: var(--navy);
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      code {
+        border-radius: 4px;
+        background: #eef6f4;
+        color: var(--accent);
+        font-family: Consolas, monospace;
+        padding: 1px 4px;
+      }
+
+      .note {
+        border-left: 4px solid var(--accent);
+        margin-top: 14px;
+        padding: 10px 14px;
+        background: #eefaf7;
+      }
+
+      .footer {
+        margin-top: 28px;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+        color: var(--muted);
+        font-size: 9.5pt;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="cover">
+      <div class="brand">
+        <div class="mark">F</div>
+        <div>
+          <strong>FastStack Spend</strong><br>
+          White Label License
+        </div>
+      </div>
+      <h1>White Label Deployment Guide</h1>
+      <p>Complete onboarding, setup, deployment, backend, backup, security, and branding guide for customers who purchase the FastStack White Label License.</p>
+      <div class="meta">
+        <div class="card"><strong>License Price</strong><br>$100 USD</div>
+        <div class="card"><strong>Contact</strong><br>ranjancom2000@gmail.com</div>
+        <div class="card"><strong>Recommended Hosting</strong><br>GitHub Pages with custom domain</div>
+        <div class="card"><strong>Backend</strong><br>Google Sheets through Google Apps Script API</div>
+      </div>
+    </section>
+
+    <section class="page-break">
+      <h2>1. What Is Included</h2>
+      <p>The FastStack White Label License allows a customer to deploy and rebrand the application for their own business, clients, internal finance teams, or agency offering.</p>
+      <div class="grid">
+        <div class="card">
+          <h3>Application Rights</h3>
+          <ul>
+            <li>Use the FastStack expense tracker under your own brand.</li>
+            <li>Customize company name, logo, colors, text, and domain.</li>
+            <li>Deploy for your own internal team or customers.</li>
+            <li>Use petty cash, project, tour, and multi-group budget workflows.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Feature Scope</h3>
+          <ul>
+            <li>Secure login and user management.</li>
+            <li>Cash in, cash out, projects, groups, balances, and reports.</li>
+            <li>Google Sheets backend through a private API.</li>
+            <li>Daily Google Drive backups and restore support.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="note">The license does not include ownership of the FastStack brand name unless separately agreed. White-label buyers should replace the visible brand with their own company identity.</div>
+    </section>
+
+    <section>
+      <h2>2. Required Services and Accounts</h2>
+      <table>
+        <thead>
+          <tr><th>Service</th><th>Purpose</th><th>Required Access</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>GitHub</td><td>Host source files and GitHub Pages site.</td><td>Repository admin access.</td></tr>
+          <tr><td>GitHub Pages</td><td>Publish the frontend application.</td><td>Pages enabled from the target branch.</td></tr>
+          <tr><td>Google Sheets</td><td>Centralized database for users, projects, transactions, balances, settings, and backups list.</td><td>Spreadsheet owner access.</td></tr>
+          <tr><td>Google Apps Script</td><td>Secure backend API between the app and Google Sheets.</td><td>Script owner and web app deployment access.</td></tr>
+          <tr><td>Google Drive</td><td>Store daily backup copies and restore files.</td><td>Folder owner access.</td></tr>
+          <tr><td>Domain Provider</td><td>Connect your custom domain to GitHub Pages.</td><td>DNS management access.</td></tr>
+          <tr><td>Email Account</td><td>Receive registration, support, and operational messages.</td><td>Admin mailbox access.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="page-break">
+      <h2>3. Deployment Options</h2>
+      <h3>Option A: Deploy on Your Own Domain</h3>
+      <ol>
+        <li>Create or select a GitHub repository for the white-label application.</li>
+        <li>Upload the frontend files: <code>index.html</code>, <code>app.js</code>, <code>styles.css</code>, <code>config.js</code>, and related assets.</li>
+        <li>Enable GitHub Pages from repository settings.</li>
+        <li>In your domain provider DNS settings, create a <code>CNAME</code> record pointing your subdomain to <code>your-github-username.github.io</code>.</li>
+        <li>Add the custom domain in GitHub Pages settings.</li>
+        <li>Enable HTTPS after GitHub verifies DNS.</li>
+      </ol>
+      <h3>Option B: Deploy with GitHub Pages URL</h3>
+      <ol>
+        <li>Create a GitHub repository, for example <code>expense-tracker</code>.</li>
+        <li>Commit the application files to the main branch.</li>
+        <li>Open repository Settings, then Pages.</li>
+        <li>Select the branch and root folder for deployment.</li>
+        <li>Save the Pages configuration.</li>
+        <li>Open the generated URL, usually <code>https://username.github.io/repository-name/</code>.</li>
+      </ol>
+      <div class="note">After deployment, update <code>config.js</code> with the production Google Apps Script Web App URL.</div>
+    </section>
+
+    <section>
+      <h2>4. Google Sheets Backend Setup</h2>
+      <ol>
+        <li>Create a new Google Sheet for the application database.</li>
+        <li>Create tabs for users, sessions, projects, categories, cash-in records, cash-out records, transactions, settings, backups, and audit history.</li>
+        <li>Open Extensions, then Apps Script.</li>
+        <li>Paste the FastStack backend Apps Script code into <code>Code.gs</code>.</li>
+        <li>Set script properties for spreadsheet ID, backup folder ID, security keys, and allowed frontend origin.</li>
+        <li>Deploy the Apps Script project as a Web App.</li>
+        <li>Set "Execute as" to the script owner and access to the intended audience.</li>
+        <li>Copy the Web App URL and place it in frontend <code>config.js</code>.</li>
+      </ol>
+      <h3>Backend Security Checklist</h3>
+      <ul>
+        <li>Do not expose the spreadsheet URL directly to application users.</li>
+        <li>Use the Apps Script Web App as the only bridge between frontend and Google Sheets.</li>
+        <li>Validate email, password, amount, date, category, and text fields server-side.</li>
+        <li>Sanitize input against formula injection by escaping values beginning with <code>=</code>, <code>+</code>, <code>-</code>, or <code>@</code>.</li>
+        <li>Use session tokens and reject expired or invalid sessions.</li>
+        <li>Keep admin-only operations protected.</li>
+      </ul>
+    </section>
+
+    <section class="page-break">
+      <h2>5. Automated Backup Setup</h2>
+      <ol>
+        <li>Create a dedicated Google Drive folder named after your white-label application.</li>
+        <li>Copy the folder ID from the Drive URL.</li>
+        <li>Add the folder ID to Apps Script properties.</li>
+        <li>Run the backend setup function once to create or verify required sheets and backup configuration.</li>
+        <li>Create a time-driven Apps Script trigger for daily backups.</li>
+        <li>Use a retention policy of 30 days, or adjust according to your business policy.</li>
+        <li>Test "Backup Now" from the app and confirm a backup file appears in Drive.</li>
+        <li>Test restore on a copy of the sheet before using restore in production.</li>
+      </ol>
+      <div class="note">Recommended schedule: daily at a low-traffic time such as 2:15 AM in the operating timezone.</div>
+    </section>
+
+    <section>
+      <h2>6. Branding Customization</h2>
+      <table>
+        <thead>
+          <tr><th>Item</th><th>Where to Update</th><th>Recommendation</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Application name</td><td><code>index.html</code> and visible headings</td><td>Use the customer's product or company name.</td></tr>
+          <tr><td>Logo</td><td>Header, login screen, favicon, social preview image</td><td>Use SVG or optimized PNG assets.</td></tr>
+          <tr><td>Colors</td><td><code>styles.css</code> variables</td><td>Set primary, accent, surface, and status colors.</td></tr>
+          <tr><td>Domain</td><td>GitHub Pages custom domain and DNS</td><td>Use HTTPS and a branded subdomain.</td></tr>
+          <tr><td>Email</td><td>Support links and notification templates</td><td>Use a monitored support mailbox.</td></tr>
+          <tr><td>Reports</td><td>PDF report title, footer, and branding</td><td>Include company name and contact details.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="page-break">
+      <h2>7. User Management and Security</h2>
+      <ul>
+        <li>Allow only authorized email domains if the deployment is internal.</li>
+        <li>Require strong passwords and email verification for new accounts.</li>
+        <li>Use role-based access for admin, manager, and standard users where needed.</li>
+        <li>Review user accounts regularly and disable inactive accounts.</li>
+        <li>Keep Apps Script deployments and script properties private.</li>
+        <li>Do not commit secrets, tokens, spreadsheet IDs, or private URLs into public repositories unless they are intended to be public.</li>
+        <li>Audit high-risk actions such as restore, delete, password changes, and admin changes.</li>
+      </ul>
+      <h2>8. Maintenance and Support</h2>
+      <ul>
+        <li>Check GitHub Pages deployment status after every update.</li>
+        <li>Review Apps Script execution logs for failed API calls.</li>
+        <li>Monitor Google Drive storage and backup retention.</li>
+        <li>Test login, registration, cash-in, cash-out, PDF export, and backup restore after major changes.</li>
+        <li>Keep a copy of the last known good frontend and backend code.</li>
+        <li>Contact <strong>ranjancom2000@gmail.com</strong> for setup help, customization, or deployment support.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>9. Deployment Checklist</h2>
+      <table>
+        <thead>
+          <tr><th>Task</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Brand name, logo, colors, and support email updated.</td><td>Pending</td></tr>
+          <tr><td>GitHub Pages deployment created and HTTPS enabled.</td><td>Pending</td></tr>
+          <tr><td>Custom domain DNS configured if required.</td><td>Pending</td></tr>
+          <tr><td>Google Sheet database created and protected.</td><td>Pending</td></tr>
+          <tr><td>Google Apps Script backend deployed as Web App.</td><td>Pending</td></tr>
+          <tr><td><code>config.js</code> updated with backend API URL.</td><td>Pending</td></tr>
+          <tr><td>Daily backup trigger created and tested.</td><td>Pending</td></tr>
+          <tr><td>Registration, login, cash-in, cash-out, reports, and restore tested.</td><td>Pending</td></tr>
+        </tbody>
+      </table>
+      <div class="footer">FastStack Spend White Label Deployment Guide. For licensing, onboarding, and deployment support, contact ranjancom2000@gmail.com.</div>
+    </section>
+  </body>
+</html>

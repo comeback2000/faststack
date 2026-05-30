@@ -384,6 +384,70 @@ p {
   color: #d9fff5;
 }
 
+.license-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.license-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.license-form span {
+  color: #d9fff5;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.license-form input,
+.license-form textarea {
+  width: 100%;
+  border: 1px solid rgba(217, 255, 245, 0.34);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  font: inherit;
+  padding: 12px 14px;
+}
+
+.license-form textarea {
+  resize: vertical;
+}
+
+.license-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.license-actions .light-button {
+  margin-top: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.guide-link {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.guide-link svg {
+  width: 18px;
+  height: 18px;
+}
+
 .light-button {
   margin-top: 18px;
   background: #ffffff;
@@ -468,7 +532,8 @@ p {
   .feature-grid,
   .contact-section,
   .hero-stats,
-  .logo-strip {
+  .logo-strip,
+  .form-grid {
     grid-template-columns: 1fr;
   }
 

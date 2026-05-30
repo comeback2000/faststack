@@ -19,7 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script defer src="script.js"></script>
+    <script defer src="script.js?v=2"></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -64,7 +64,7 @@
               <i data-lucide="rocket" aria-hidden="true"></i>
               Launch FastStack
             </a>
-            <a class="ghost-button" href="mailto:ranjancom2000@gmail.com?subject=FastStack%20White%20Label%20License%20Inquiry&body=Hi%20Ranjan%2C%0A%0AI%20am%20interested%20in%20buying%20the%20FastStack%20white-label%20license%20for%20%24100%20USD.%20Please%20send%20me%20the%20next%20steps.%0A%0AName%3A%0ACompany%3A%0AUse%20case%3A">
+            <a class="ghost-button white-label-mail-link" href="mailto:ranjancom2000@gmail.com?subject=FastStack%20White%20Label%20License%20Inquiry">
               <i data-lucide="mail" aria-hidden="true"></i>
               Buy White Label License
             </a>
@@ -237,10 +237,40 @@
             <li>Deploy for your own customers or teams.</li>
             <li>Adapt the experience for your niche.</li>
           </ul>
-          <a class="primary-button light-button" href="mailto:ranjancom2000@gmail.com?subject=FastStack%20White%20Label%20License%20Inquiry&body=Hi%20Ranjan%2C%0A%0AI%20want%20to%20buy%20the%20FastStack%20white-label%20license%20for%20%24100%20USD.%0A%0AName%3A%0ACompany%3A%0AWebsite%3A%0AUse%20case%3A">
-            <i data-lucide="mail" aria-hidden="true"></i>
-            Buy White Label License
-          </a>
+          <form class="license-form" id="whiteLabelForm">
+            <div class="form-grid">
+              <label>
+                <span>Name</span>
+                <input id="licenseName" name="name" type="text" autocomplete="name" placeholder="Your name">
+              </label>
+              <label>
+                <span>Company</span>
+                <input id="licenseCompany" name="company" type="text" autocomplete="organization" placeholder="Company name">
+              </label>
+              <label>
+                <span>Email</span>
+                <input id="licenseEmail" name="email" type="email" autocomplete="email" placeholder="you@company.com">
+              </label>
+              <label>
+                <span>Website / Domain</span>
+                <input id="licenseWebsite" name="website" type="url" autocomplete="url" placeholder="https://yourdomain.com">
+              </label>
+            </div>
+            <label>
+              <span>Deployment requirements</span>
+              <textarea id="licenseRequirements" name="requirements" rows="3" placeholder="Example: deploy on our domain, configure Google Sheets backend, customize logo/colors, set up backups"></textarea>
+            </label>
+            <div class="license-actions">
+              <button class="primary-button light-button" type="submit">
+                <i data-lucide="mail" aria-hidden="true"></i>
+                Buy White Label License
+              </button>
+              <a class="guide-link" href="assets/white-label-deployment-guide.pdf" download>
+                <i data-lucide="file-text" aria-hidden="true"></i>
+                Download Deployment Guide
+              </a>
+            </div>
+          </form>
         </div>
       </section>
 

@@ -164,6 +164,8 @@ const elements = {
   weekFilter: document.querySelector("#weekFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
   globalSearchCheckbox: document.querySelector("#globalSearchCheckbox"),
+  searchAllButton: document.querySelector("#searchAllButton"),
+  globalSearchLabel: document.querySelector("#globalSearchLabel"),
   detailModal: document.querySelector("#detailModal"),
   detailCloseButton: document.querySelector("#detailCloseButton"),
   detailType: document.querySelector("#detailType"),
@@ -311,9 +313,10 @@ function bindEvents() {
     renderAllTransactions();
   });
   elements.globalSearchCheckbox.addEventListener("change", () => {
-    state.filters.globalSearch = elements.globalSearchCheckbox.checked;
-    document.querySelector("#transactionsPage .page-actions")?.classList.toggle("global-search-active", state.filters.globalSearch);
-    renderAllTransactions();
+    setGlobalSearch(elements.globalSearchCheckbox.checked);
+  });
+  elements.searchAllButton.addEventListener("click", () => {
+    setGlobalSearch(!state.filters.globalSearch);
   });
   elements.weekFilter.addEventListener("change", () => {
     state.filters.week = elements.weekFilter.value || getCurrentWeek();
@@ -1180,6 +1183,25 @@ function renderProjectsPage(groupSummaries = getGroupSummaries()) {
       </tr>
     `;
   }).join("");
+}
+
+function setGlobalSearch(enabled) {
+  state.filters.globalSearch = enabled;
+  if (elements.globalSearchCheckbox) {
+    elements.globalSearchCheckbox.checked = enabled;
+  }
+  if (elements.searchAllButton) {
+    elements.searchAllButton.classList.toggle("active", enabled);
+    const label = elements.searchAllButton.querySelector("span");
+    if (label) {
+      label.textContent = enabled ? "Searching All Transactions" : "Search All Transactions";
+    }
+  }
+  if (elements.globalSearchLabel) {
+    elements.globalSearchLabel.classList.toggle("hidden", !enabled);
+  }
+  document.querySelector("#transactionsPage .page-actions")?.classList.toggle("global-search-active", enabled);
+  renderAllTransactions();
 }
 
 function renderAllTransactions() {

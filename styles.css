@@ -722,8 +722,29 @@ button {
 }
 
 .global-search-row {
-  grid-template-columns: 1fr;
-  margin-top: -8px;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-top: -4px;
+}
+
+.search-all-button {
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.search-all-button.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.search-all-button.active svg {
+  color: #ffffff;
 }
 
 .global-search-label {
@@ -731,10 +752,9 @@ button {
   gap: 10px;
   align-items: center;
   cursor: pointer;
-  color: var(--accent-strong);
-  font-size: 0.88rem;
+  color: var(--muted);
+  font-size: 0.84rem;
   font-weight: 700;
-  padding: 8px 0;
 }
 
 .global-search-label input[type="checkbox"] {
@@ -742,18 +762,6 @@ button {
   height: 18px;
   accent-color: var(--accent);
   cursor: pointer;
-}
-
-.global-search-label svg {
-  width: 16px;
-  height: 16px;
-  color: var(--accent);
-}
-
-.global-search-label span {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
 }
 
 .global-search-active .search-field input {

@@ -9,10 +9,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=backup-restore-1">
+    <link rel="stylesheet" href="styles.css?v=search-all-v1">
     <script src="config.js?v=google-sheets-v10"></script>
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script defer src="app.js?v=backup-restore-1"></script>
+    <script defer src="app.js?v=search-all-v1"></script>
   </head>
   <body>
     <section class="login-screen" id="loginScreen" aria-label="Account access">
@@ -305,9 +305,13 @@
               </label>
             </div>
             <div class="filters global-search-row">
-              <label class="global-search-label">
+              <button class="ghost-button search-all-button" id="searchAllButton" type="button">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <span>Search All Transactions</span>
+              </button>
+              <label class="global-search-label hidden" id="globalSearchLabel">
                 <input id="globalSearchCheckbox" type="checkbox">
-                <span><i data-lucide="search" aria-hidden="true"></i> Search All Transactions (ignore Project & Week filters)</span>
+                <span>Ignore Project & Week filters</span>
               </label>
             </div>
             <button class="primary-button" id="transactionAddButton" type="button">

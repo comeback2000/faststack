@@ -161,6 +161,7 @@ const elements = {
   backupEmptyState: document.querySelector("#backupEmptyState"),
   backupMessage: document.querySelector("#backupMessage"),
   searchInput: document.querySelector("#searchInput"),
+  searchClearButton: document.querySelector("#searchClearButton"),
   weekFilter: document.querySelector("#weekFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
   globalSearchCheckbox: document.querySelector("#globalSearchCheckbox"),
@@ -308,9 +309,19 @@ function bindEvents() {
   elements.allTransactionsTable.addEventListener("click", handleAllTransactionsClick);
   elements.searchInput.addEventListener("input", () => {
     state.filters.search = elements.searchInput.value.trim().toLowerCase();
+    elements.searchClearButton?.classList.toggle("hidden", !state.filters.search);
     renderTransactions();
     renderCashIns();
     renderAllTransactions();
+  });
+  elements.searchClearButton?.addEventListener("click", () => {
+    elements.searchInput.value = "";
+    state.filters.search = "";
+    elements.searchClearButton.classList.add("hidden");
+    renderTransactions();
+    renderCashIns();
+    renderAllTransactions();
+    elements.searchInput.focus();
   });
   elements.globalSearchCheckbox.addEventListener("change", () => {
     setGlobalSearch(elements.globalSearchCheckbox.checked);
@@ -1647,8 +1658,10 @@ function getFilteredCashIns() {
 }
 
 function matchesSearch(transaction) {
-  const haystack = `${transaction.description} ${transaction.category} ${transaction.notes || ""}`.toLowerCase();
-  return !state.filters.search || haystack.includes(state.filters.search);
+  if (!state.filters.search) return true;
+  const haystack = `${transaction.description} ${transaction.category}`.toLowerCase();
+  const words = state.filters.search.split(/\s+/).filter(Boolean);
+  return words.every(word => haystack.includes(word));
 }
 
 function expensesForWeek(week) {

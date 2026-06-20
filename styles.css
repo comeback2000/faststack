@@ -721,6 +721,43 @@ button {
   grid-template-columns: minmax(180px, 1fr) minmax(150px, auto) minmax(150px, auto);
 }
 
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input-wrap input {
+  padding-right: 36px;
+}
+
+.search-clear-button {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.search-clear-button:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+
+.search-clear-button svg {
+  width: 14px;
+  height: 14px;
+}
+
 .global-search-row {
   grid-template-columns: auto 1fr;
   gap: 12px;

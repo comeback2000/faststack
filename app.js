@@ -35,6 +35,7 @@ const state = {
     group: "All",
     type: "All",
     projectSearch: "",
+    globalSearch: false,
   },
 };
 
@@ -162,6 +163,7 @@ const elements = {
   searchInput: document.querySelector("#searchInput"),
   weekFilter: document.querySelector("#weekFilter"),
   categoryFilter: document.querySelector("#categoryFilter"),
+  globalSearchCheckbox: document.querySelector("#globalSearchCheckbox"),
   detailModal: document.querySelector("#detailModal"),
   detailCloseButton: document.querySelector("#detailCloseButton"),
   detailType: document.querySelector("#detailType"),
@@ -306,6 +308,11 @@ function bindEvents() {
     state.filters.search = elements.searchInput.value.trim().toLowerCase();
     renderTransactions();
     renderCashIns();
+    renderAllTransactions();
+  });
+  elements.globalSearchCheckbox.addEventListener("change", () => {
+    state.filters.globalSearch = elements.globalSearchCheckbox.checked;
+    document.querySelector("#transactionsPage .page-actions")?.classList.toggle("global-search-active", state.filters.globalSearch);
     renderAllTransactions();
   });
   elements.weekFilter.addEventListener("change", () => {
@@ -1193,7 +1200,7 @@ function renderAllTransactions() {
         <td>${escapeHtml(entry.description)}</td>
         <td class="amount-col cash-in-value">${isCashIn ? formatCurrency(entry.amount) : "-"}</td>
         <td class="amount-col cash-out-value">${isCashIn ? "-" : formatCurrency(entry.amount)}</td>
-        <td class="amount-col balance-positive">${formatCurrency(balanceById.get(entry.id) || 0)}</td>
+        <td class="amount-col ${(balanceById.get(entry.id) || 0) < 0 ? 'balance-negative' : 'balance-positive'}">${formatCurrency(balanceById.get(entry.id) || 0)}</td>
         <td class="actions-col">
           <button class="icon-button" type="button" data-action="edit-transaction" data-type="${entry.type}" data-id="${escapeAttribute(entry.id)}" title="Edit" aria-label="Edit ${escapeAttribute(entry.description)}">
             <i data-lucide="pencil" aria-hidden="true"></i>
@@ -1202,7 +1209,8 @@ function renderAllTransactions() {
       </tr>
     `;
   }).join("");
-  elements.transactionCountLabel.textContent = `Showing ${rows.length} of ${getAllTransactions().length} transactions`;
+  const globalNote = state.filters.globalSearch ? " (global search — all projects & weeks)" : "";
+  elements.transactionCountLabel.textContent = `Showing ${rows.length} of ${getAllTransactions().length} transactions${globalNote}`;
 }
 
 function renderReportPage() {
@@ -1567,8 +1575,8 @@ function getAllTransactions() {
 
 function getFilteredAllTransactions() {
   return getAllTransactions()
-    .filter((entry) => !state.filters.week || isDateInWeek(entry.date, state.filters.week))
-    .filter((entry) => state.filters.group === "All" || entry.category === state.filters.group)
+    .filter((entry) => state.filters.globalSearch || !state.filters.week || isDateInWeek(entry.date, state.filters.week))
+    .filter((entry) => state.filters.globalSearch || state.filters.group === "All" || entry.category === state.filters.group)
     .filter((entry) => state.filters.type === "All" || entry.type === state.filters.type)
     .filter((entry) => matchesSearch(entry))
     .sort(sortByDateDesc);

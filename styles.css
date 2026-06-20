@@ -721,6 +721,46 @@ button {
   grid-template-columns: minmax(180px, 1fr) minmax(150px, auto) minmax(150px, auto);
 }
 
+.global-search-row {
+  grid-template-columns: 1fr;
+  margin-top: -8px;
+}
+
+.global-search-label {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 8px 0;
+}
+
+.global-search-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.global-search-label svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+}
+
+.global-search-label span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.global-search-active .search-field input {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.13);
+}
+
 .table-wrap {
   position: relative;
   overflow-x: auto;

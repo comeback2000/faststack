@@ -332,10 +332,12 @@ function bindEvents() {
   elements.weekFilter.addEventListener("change", () => {
     state.filters.week = elements.weekFilter.value || getCurrentWeek();
     elements.analyticsWeekFilter.value = state.filters.week;
+    setGlobalSearch(false);
     render();
   });
   elements.categoryFilter.addEventListener("change", () => {
     state.filters.group = elements.categoryFilter.value;
+    setGlobalSearch(false);
     renderTransactions();
     renderCashIns();
     renderDailyBreakdown();

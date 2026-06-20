@@ -224,6 +224,7 @@ async function bootDashboard() {
     bindEvents();
     state.dashboardBooted = true;
   }
+  setGlobalSearch(false);
   setMode("expense");
   render();
 }
